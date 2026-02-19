@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        DarkTunnel VPN - String Resources
+        ==================================
+        All user-facing strings for the application
+    -->
+    
+    <!-- ==================== APP INFO ==================== -->
+    <string name="app_name">DarkTunnel VPN</string>
+    <string name="app_version">Version %1$s</string>
+    <string name="app_description">Secure, fast, and private VPN tunnel</string>
+    
+    <!-- ==================== NAVIGATION ==================== -->
+    <string name="nav_home">Home</string>
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_logs">Logs</string>
+    <string name="nav_about">About</string>
+    
+    <!-- ==================== MAIN SCREEN ==================== -->
+    <string name="title_main">DarkTunnel</string>
+    <string name="title_profile_management">Manage Profiles</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_logs">Connection Logs</string>
+    
+    <!-- ==================== INPUT FIELDS ==================== -->
+    <string name="label_target">Target</string>
+    <string name="hint_target">host:port@protocol…</string>
+    <string name="label_payload">Payload</string>
+    <string name="hint_payload">GET / HTTP/1.1\r\nHost: …</string>
+    <string name="label_profile_name">Profile Name</string>
+    <string name="hint_profile_name">My VPN Profile</string>
+    
+    <!-- ==================== BUTTONS ==================== -->
+    <string name="button_connect">CONNECT</string>
+    <string name="button_connecting">CONNECTING…</string>
+    <string name="button_disconnect">DISCONNECT</string>
+    <string name="button_save">Save</string>
+    <string name="button_cancel">Cancel</string>
+    <string name="button_delete">Delete</string>
+    <string name="button_edit">Edit</string>
+    <string name="button_copy">Copy</string>
+    <string name="button_paste">Paste</string>
+    <string name="button_import">Import</string>
+    <string name="button_export">Export</string>
+    <string name="button_add">Add</string>
+    <string name="button_favorite">Favorite</string>
+    
+    <!-- ==================== VPN STATUS ==================== -->
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnecting">Disconnecting…</string>
+    <string name="status_error">Connection Error</string>
+    <string name="status_reconnecting">Reconnecting…</string>
+    
+    <!-- ==================== CONNECTION INFO ==================== -->
+    <string name="label_local_ip">Local IP</string>
+    <string name="label_server_ip">Server IP</string>
+    <string name="label_bytes_sent">Sent</string>
+    <string name="label_bytes_received">Received</string>
+    <string name="label_duration">Duration</string>
+    <string name="label_protocol">Protocol</string>
+    <string name="label_ping">Ping</string>
+    
+    <!-- ==================== LOGS ==================== -->
+    <string name="log_title">Connection Log</string>
+    <string name="log_clear">Clear Logs</string>
+    <string name="log_empty">No logs yet. Connect to see activity.</string>
+    <string name="log_copied">Log copied to clipboard</string>
+    <string name="log_timestamp_format">[%1$s]</string>
+    
+    <!-- ==================== PROFILES ==================== -->
+    <string name="profile_title">VPN Profiles</string>
+    <string name="profile_empty">No saved profiles</string>
+    <string name="profile_add">Add Profile</string>
+    <string name="profile_edit">Edit Profile</string>
+    <string name="profile_delete_confirm">Delete this profile?</string>
+    <string name="profile_delete_message">This action cannot be undone.</string>
+    <string name="profile_saved">Profile saved</string>
+    <string name="profile_deleted">Profile deleted</string>
+    <string name="profile_imported">Profile imported</string>
+    <string name="profile_exported">Profile exported</string>
+    <string name="profile_default_name">New Profile</string>
+    <string name="profile_favorite_added">Added to favorites</string>
+    <string name="profile_favorite_removed">Removed from favorites</string>
+    
+    <!-- ==================== SETTINGS ==================== -->
+    <string name="settings_category_general">General</string>
+    <string name="settings_category_connection">Connection</string>
+    <string name="settings_category_security">Security</string>
+    <string name="settings_category_advanced">Advanced</string>
+    
+    <string name="settings_performance_mode">Performance Mode</string>
+    <string name="settings_performance_mode_summary">Optimize for speed over security</string>
+    <string name="settings_direct_target">Direct to Target</string>
+    <string name="settings_direct_target_summary">Skip proxy and connect directly</string>
+    <string name="settings_auto_connect">Auto-connect on startup</string>
+    <string name="settings_auto_connect_summary">Connect to last profile on app launch</string>
+    <string name="settings_kill_switch">Kill Switch</string>
+    <string name="settings_kill_switch_summary">Block internet if VPN disconnects</string>
+    <string name="settings_dns">Custom DNS</string>
+    <string name="settings_dns_summary">Use custom DNS servers</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_system">System Default</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_clear_data">Clear All Data</string>
+    <string name="settings_clear_data_summary">Remove all profiles and settings</string>
+    <string name="settings_clear_data_confirm">Clear all data?</string>
+    <string name="settings_clear_data_message">All profiles and settings will be permanently deleted.</string>
+    
+    <!-- ==================== PERMISSIONS ==================== -->
+    <string name="permission_vpn_title">VPN Permission Required</string>
+    <string name="permission_vpn_message">DarkTunnel needs permission to establish a VPN connection. Please allow VPN access in the next dialog.</string>
+    <string name="permission_vpn_denied">VPN permission denied. Cannot establish connection.</string>
+    <string name="permission_notification_title">Notification Permission</string>
+    <string name="permission_notification_message">Allow notifications to show VPN status</string>
+    <string name="permission_storage_title">Storage Permission</string>
+    <string name="permission_storage_message">Allow access to import VPN profiles</string>
+    
+    <!-- ==================== ERRORS ==================== -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_connection_failed">Connection failed. Check your configuration.</string>
+    <string name="error_invalid_config">Invalid configuration. Please check target and payload.</string>
+    <string name="error_timeout">Connection timed out. Server may be unreachable.</string>
+    <string name="error_auth_failed">Authentication failed. Check your credentials.</string>
+    <string name="error_network_unavailable">No network connection available.</string>
+    <string name="error_vpn_permission_denied">VPN permission was denied.</string>
+    <string name="error_profile_not_found">Profile not found.</string>
+    <string name="error_import_failed">Failed to import profile.</string>
+    <string name="error_export_failed">Failed to export profile.</string>
+    <string name="error_save_failed">Failed to save profile.</string>
+    <string name="error_delete_failed">Failed to delete profile.</string>
+    
+    <!-- ==================== NOTIFICATIONS ==================== -->
+    <string name="notification_channel_vpn">VPN Service</string>
+    <string name="notification_channel_vpn_description">Shows VPN connection status</string>
+    <string name="notification_vpn_connected">VPN Connected</string>
+    <string name="notification_vpn_connecting">Connecting to VPN…</string>
+    <string name="notification_vpn_disconnected">VPN Disconnected</string>
+    <string name="notification_tap_to_disconnect">Tap to disconnect</string>
+    <string name="notification_tap_to_connect">Tap to connect</string>
+    
+    <!-- ==================== TOASTS/SNACKBARS ==================== -->
+    <string name="toast_connected">Connected successfully</string>
+    <string name="toast_disconnected">Disconnected</string>
+    <string name="toast_copied">Copied to clipboard</string>
+    <string name="toast_pasted">Pasted from clipboard</string>
+    <string name="toast_saved">Saved</string>
+    <string name="toast_deleted">Deleted</string>
+    <string name="toast_no_internet">No internet connection</string>
+    
+    <!-- ==================== DIALOGS ==================== -->
+    <string name="dialog_title_confirm">Confirm</string>
+    <string name="dialog_title_error">Error</string>
+    <string name="dialog_title_success">Success</string>
+    <string name="dialog_button_ok">OK</string>
+    <string name="dialog_button_yes">Yes</string>
+    <string name="dialog_button_no">No</string>
+    <string name="dialog_button_cancel">Cancel</string>
+    <string name="dialog_button_retry">Retry</string>
+    
+    <!-- ==================== ABOUT ==================== -->
+    <string name="about_title">About DarkTunnel</string>
+    <string name="about_version">Version %1$s (%2$d)</string>
+    <string name="about_description">DarkTunnel is a secure VPN client supporting WireGuard and OpenVPN protocols.</string>
+    <string name="about_privacy_policy">Privacy Policy</string>
+    <string name="about_terms">Terms of Use</string>
+    <string name="about_open_source">Open Source Licenses</string>
+    <string name="about_contact">Contact Support</string>
+    
+    <!-- ==================== SECURITY ==================== -->
+    <string name="security_biometric_title">Authentication Required</string>
+    <string name="security_biometric_subtitle">Verify your identity to access profiles</string>
+    <string name="security_biometric_cancel">Cancel</string>
+    <string name="security_data_encrypted">Your data is encrypted</string>
+    <string name="security_export_warning">Warning: Exported profiles contain sensitive data</string>
+    
+    <!-- ==================== TOGGLES ==================== -->
+    <string name="toggle_performance_mode">Performance Mode</string>
+    <string name="toggle_direct_target">Direct → Target</string>
+    
+    <!-- ==================== ACCESSIBILITY ==================== -->
+    <string name="content_description_connect">Connect to VPN</string>
+    <string name="content_description_disconnect">Disconnect VPN</string>
+    <string name="content_description_favorite">Toggle favorite</string>
+    <string name="content_description_delete">Delete</string>
+    <string name="content_description_more_options">More options</string>
+    <string name="content_description_copy">Copy to clipboard</string>
+    <string name="content_description_paste">Paste from clipboard</string>
+    <string name="content_description_save">Save profile</string>
+    <string name="content_description_edit">Edit profile</string>
+    <string name="content_description_menu">Open menu</string>
+    <string name="content_description_back">Go back</string>
+    <string name="content_description_close">Close</string>
+    <string name="content_description_vpn_status">VPN status indicator</string>
+    
+    <!-- ==================== FORMAT STRINGS ==================== -->
+    <string name="format_bytes">%1$.2f %2$s</string>
+    <string name="format_duration">%1$02d:%2$02d:%3$02d</string>
+    <string name="format_ping">%1$d ms</string>
+    <string name="format_ip">IP: %1$s</string>
+    
+    <!-- ==================== UNITS ==================== -->
+    <string name="unit_bytes">B</string>
+    <string name="unit_kb">KB</string>
+    <string name="unit_mb">MB</string>
+    <string name="unit_gb">GB</string>
+    <string name="unit_second">s</string>
+    <string name="unit_millisecond">ms</string>
+</resources>
