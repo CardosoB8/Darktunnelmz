@@ -31,6 +31,7 @@ import javax.inject.Singleton
  * @version 1.0.0
  */
 @Singleton
+@Suppress("FinalClass")
 class MockVpnController @Inject constructor(
     @ApplicationContext private val context: Context
 ) : VpnController {
