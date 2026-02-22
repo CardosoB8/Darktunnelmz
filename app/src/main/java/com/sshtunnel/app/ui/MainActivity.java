@@ -529,6 +529,10 @@ public class MainActivity extends AppCompatActivity {
             });
         }
     }
+    
+    private void saveProfile() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.dialog_profile_name);
         
         final EditText input = new EditText(this);
         input.setHint("Nome do perfil");
