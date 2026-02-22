@@ -1,141 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--
-        DarkTunnel VPN - Color Palette
-        ================================
-        Light theme colors with support for dark mode
-    -->
+    <!-- Primary Colors -->
+    <color name="colorPrimary">#1976D2</color>
+    <color name="colorPrimaryDark">#1565C0</color>
+    <color name="colorPrimaryLight">#42A5F5</color>
     
-    <!-- ==================== PRIMARY COLORS ==================== -->
+    <!-- Accent Colors -->
+    <color name="colorAccent">#00BCD4</color>
+    <color name="colorAccentLight">#4DD0E1</color>
     
-    <!-- Deep Blue - Primary Brand Color -->
-    <color name="primary">#1E4DB7</color>
-    <color name="primary_dark">#153A8A</color>
-    <color name="primary_light">#4A7DE4</color>
+    <!-- Status Colors -->
+    <color name="statusConnected">#4CAF50</color>
+    <color name="statusConnecting">#FF9800</color>
+    <color name="statusDisconnected">#F44336</color>
+    <color name="statusError">#D32F2F</color>
     
-    <!-- Accent Orange -->
-    <color name="accent">#F97316</color>
-    <color name="accent_dark">#EA580C</color>
-    <color name="accent_light">#FB923C</color>
+    <!-- Background Colors -->
+    <color name="backgroundLight">#FAFAFA</color>
+    <color name="backgroundDark">#121212</color>
+    <color name="cardBackground">#FFFFFF</color>
+    <color name="cardBackgroundDark">#1E1E1E</color>
     
-    <!-- ==================== SEMANTIC COLORS ==================== -->
-    
-    <!-- Success - Green -->
-    <color name="success">#22C55E</color>
-    <color name="success_light">#86EFAC</color>
-    <color name="success_dark">#16A34A</color>
-    
-    <!-- Error - Red -->
-    <color name="error">#D32F2F</color>
-    <color name="error_light">#EF5350</color>
-    <color name="error_dark">#B71C1C</color>
-    
-    <!-- Warning - Yellow/Orange -->
-    <color name="warning">#F59E0B</color>
-    <color name="warning_light">#FCD34D</color>
-    <color name="warning_dark">#D97706</color>
-    
-    <!-- Info - Blue -->
-    <color name="info">#3B82F6</color>
-    <color name="info_light">#93C5FD</color>
-    <color name="info_dark">#2563EB</color>
-    
-    <!-- ==================== BACKGROUND COLORS ==================== -->
-    
-    <!-- Light Theme Backgrounds -->
-    <color name="background_light">#F4F6FB</color>
-    <color name="surface_light">#FFFFFF</color>
-    <color name="card_light">#FFFFFF</color>
-    
-    <!-- Dark Theme Backgrounds -->
-    <color name="background_dark">#0F172A</color>
-    <color name="surface_dark">#1E293B</color>
-    <color name="card_dark">#334155</color>
-    
-    <!-- ==================== TEXT COLORS ==================== -->
-    
-    <!-- Light Theme Text -->
-    <color name="text_primary_light">#111827</color>
-    <color name="text_secondary_light">#6B7280</color>
-    <color name="text_disabled_light">#9CA3AF</color>
-    <color name="text_hint_light">#D1D5DB</color>
-    
-    <!-- Dark Theme Text -->
-    <color name="text_primary_dark">#F9FAFB</color>
-    <color name="text_secondary_dark">#9CA3AF</color>
-    <color name="text_disabled_dark">#6B7280</color>
-    <color name="text_hint_dark">#4B5563</color>
-    
-    <!-- ==================== UI ELEMENTS ==================== -->
+    <!-- Text Colors -->
+    <color name="textPrimary">#212121</color>
+    <color name="textSecondary">#757575</color>
+    <color name="textHint">#9E9E9E</color>
+    <color name="textWhite">#FFFFFF</color>
     
     <!-- Divider -->
-    <color name="divider_light">#E5E7EB</color>
-    <color name="divider_dark">#374151</color>
+    <color name="divider">#E0E0E0</color>
     
-    <!-- Border -->
-    <color name="border_light">#D1D5DB</color>
-    <color name="border_dark">#4B5563</color>
+    <!-- Log Colors -->
+    <color name="logInfo">#2196F3</color>
+    <color name="logSuccess">#4CAF50</color>
+    <color name="logWarning">#FF9800</color>
+    <color name="logError">#F44336</color>
+    <color name="logDebug">#9E9E9E</color>
     
-    <!-- Ripple -->
-    <color name="ripple_light">#1F000000</color>
-    <color name="ripple_dark">#33FFFFFF</color>
+    <!-- Button Colors -->
+    <color name="btnConnect">#4CAF50</color>
+    <color name="btnConnectPressed">#388E3C</color>
+    <color name="btnDisconnect">#F44336</color>
+    <color name="btnDisconnectPressed">#D32F2F</color>
     
-    <!-- ==================== VPN STATUS COLORS ==================== -->
-    
-    <!-- Connected State -->
-    <color name="vpn_connected">#22C55E</color>
-    <color name="vpn_connected_bg">#DCFCE7</color>
-    
-    <!-- Connecting State -->
-    <color name="vpn_connecting">#F59E0B</color>
-    <color name="vpn_connecting_bg">#FEF3C7</color>
-    
-    <!-- Disconnected State -->
-    <color name="vpn_disconnected">#6B7280</color>
-    <color name="vpn_disconnected_bg">#F3F4F6</color>
-    
-    <!-- Error State -->
-    <color name="vpn_error">#D32F2F</color>
-    <color name="vpn_error_bg">#FEE2E2</color>
-    
-    <!-- ==================== BUTTON COLORS ==================== -->
-    
-    <!-- Connect Button -->
-    <color name="button_connect">#1E4DB7</color>
-    <color name="button_connect_pressed">#153A8A</color>
-    
-    <!-- Disconnect Button -->
-    <color name="button_disconnect">#D32F2F</color>
-    <color name="button_disconnect_pressed">#B71C1C</color>
-    
-    <!-- Connecting Button -->
-    <color name="button_connecting">#F59E0B</color>
-    
-    <!-- ==================== LOG COLORS ==================== -->
-    
-    <!-- Log Level Colors -->
-    <color name="log_debug">#6B7280</color>
-    <color name="log_info">#3B82F6</color>
-    <color name="log_warning">#F59E0B</color>
-    <color name="log_error">#D32F2F</color>
-    <color name="log_success">#22C55E</color>
-    
-    <!-- Log Background -->
-    <color name="log_background">#1E293B</color>
-    <color name="log_text">#E5E7EB</color>
-    
-    <!-- ==================== SPECIAL ==================== -->
-    
-    <!-- Transparent -->
-    <color name="transparent">#00000000</color>
-    
-    <!-- Scrim -->
-    <color name="scrim">#99000000</color>
-    
-    <!-- Shadow -->
-    <color name="shadow">#4D000000</color>
-    
-    <!-- Favorite Star -->
-    <color name="favorite_active">#FBBF24</color>
-    <color name="favorite_inactive">#9CA3AF</color>
+    <!-- Input Colors -->
+    <color name="inputBackground">#F5F5F5</color>
+    <color name="inputBorder">#E0E0E0</color>
+    <color name="inputFocused">#1976D2</color>
 </resources>

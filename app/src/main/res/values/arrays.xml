@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="connection_modes">
+        <item>Normal</item>
+        <item>SSL/TLS</item>
+        <item>WebSocket</item>
+    </string-array>
+
+    <string-array name="proxy_types">
+        <item>Nenhum</item>
+        <item>HTTP</item>
+        <item>HTTPS</item>
+        <item>SOCKS4</item>
+        <item>SOCKS5</item>
+    </string-array>
+</resources>

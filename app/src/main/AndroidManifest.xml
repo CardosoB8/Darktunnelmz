@@ -1,202 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.darktunnel.vpn">
+    package="com.sshtunnel.app">
 
-    <!--
-        DarkTunnel VPN - AndroidManifest.xml
-        =====================================
-        This manifest declares all necessary permissions and components
-        for the VPN application. Review carefully before deployment.
-    -->
-
-    <!-- ==================== PERMISSIONS ==================== -->
-    
-    <!-- Core VPN Permission - REQUIRED -->
-    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
-    
-    <!-- Network Permissions -->
+    <!-- Permissões de Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     
-    <!-- Foreground Service Permissions (Android 9+) -->
+    <!-- Permissões VPN -->
+    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
+    
+    <!-- Permissões de Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    
-    <!-- Notification Permissions (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    
-    <!-- Wake Lock for keeping VPN active -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     
-    <!-- Receive Boot Completed for auto-start (optional) -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
-    <!-- Storage Permissions for importing profiles -->
+    <!-- Permissões de armazenamento para chaves SSH -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_DOCUMENTS"
-        tools:ignore="SelectedPhotoAccess" />
-    
-    <!-- Query Intents for VPN Preparation -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-        </intent>
-    </queries>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"
+        tools:ignore="ScopedStorage" />
 
-    <!-- ==================== APPLICATION ==================== -->
-    
     <application
-        android:name=".DarkTunnelApplication"
-        android:allowBackup="false"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
-        android:icon="@android:drawable/ic_dialog_info"
+        android:name=".SSHTunnelApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@android:drawable/ic_dialog_info"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.DarkTunnel"
-        android:usesCleartextTraffic="false"
-        tools:targetApi="33">
+        android:theme="@style/Theme.SSHTunnelApp"
+        android:usesCleartextTraffic="true">
 
-        <!-- ==================== ACTIVITIES ==================== -->
-        
-        <!-- Main Activity - Entry Point -->
+        <!-- Main Activity -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.DarkTunnel"
-            android:windowSoftInputMode="adjustResize"
-            tools:ignore="LockedOrientationActivity">
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            
-            <!-- Intent filter for importing VPN profiles -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="file" />
-                <data android:scheme="content" />
-                <data android:mimeType="*/*" />
-                <data android:host="*" />
-                <data android:pathPattern=".*\\.ovpn" />
-                <data android:pathPattern=".*\\.conf" />
-            </intent-filter>
         </activity>
-        
-        <!-- Profile Management Activity -->
-        <activity
-            android:name=".ui.ProfileActivity"
-            android:exported="false"
-            android:label="@string/title_profile_management"
-            android:parentActivityName=".ui.MainActivity"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
-        
-        <!-- Settings Activity -->
-        <activity
-            android:name=".ui.SettingsActivity"
-            android:exported="false"
-            android:label="@string/title_settings"
-            android:parentActivityName=".ui.MainActivity" />
 
-        <!-- ==================== SERVICES ==================== -->
-        
-        <!-- VPN Service - Core Component -->
+        <!-- Payload Generator Activity -->
+        <activity
+            android:name=".ui.PayloadGeneratorActivity"
+            android:label="@string/title_payload_generator"
+            android:parentActivityName=".ui.MainActivity"
+            android:screenOrientation="portrait" />
+
+        <!-- Profile Manager Activity -->
+        <activity
+            android:name=".ui.ProfileManagerActivity"
+            android:label="@string/title_profiles"
+            android:parentActivityName=".ui.MainActivity"
+            android:screenOrientation="portrait" />
+
+        <!-- VPN Service -->
         <service
-            android:name=".service.DarkTunnelVpnService"
+            android:name=".service.SSHTunnelVpnService"
+            android:permission="android.permission.BIND_VPN_SERVICE"
             android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:permission="android.permission.BIND_VPN_SERVICE">
-            <intent-filter>
-                <action android:name="android.net.VpnService" />
-            </intent-filter>
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="vpn" />
-        </service>
-        
-        <!-- WireGuard VPN Service -->
-        <service
-            android:name=".service.WireGuardVpnService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:permission="android.permission.BIND_VPN_SERVICE">
-            <intent-filter>
-                <action android:name="android.net.VpnService" />
-            </intent-filter>
-        </service>
-        
-        <!-- OpenVPN Service -->
-        <service
-            android:name=".service.OpenVpnService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:permission="android.permission.BIND_VPN_SERVICE">
+            android:foregroundServiceType="specialUse">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
         </service>
-        
-        <!-- Connection Monitor Service -->
+
+        <!-- SSH Connection Service -->
         <service
-            android:name=".service.ConnectionMonitorService"
+            android:name=".service.SSHConnectionService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
-        
-        <!-- WorkManager Initialization -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup" />
-        </provider>
 
-        <!-- ==================== RECEIVERS ==================== -->
-        
-        <!-- Boot Receiver for Auto-Start (optional) -->
-        <receiver
-            android:name=".receiver.BootReceiver"
-            android:enabled="false"
-            android:exported="true"
-            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- VPN State Receiver -->
-        <receiver
-            android:name=".receiver.VpnStateReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.darktunnel.vpn.ACTION_VPN_CONNECTED" />
-                <action android:name="com.darktunnel.vpn.ACTION_VPN_DISCONNECTED" />
-                <action android:name="com.darktunnel.vpn.ACTION_VPN_ERROR" />
-            </intent-filter>
-        </receiver>
-
-        <!-- ==================== METADATA ==================== -->
-        
-        <!-- Firebase (optional - for crashlytics/analytics) -->
-        <meta-data
-            android:name="firebase_crashlytics_collection_enabled"
-            android:value="false" />
-        
-        <!-- Disable backup for security -->
-        <meta-data
-            android:name="android.allow_backup"
-            android:value="false" />
+        <!-- Log Viewer Activity -->
+        <activity
+            android:name=".ui.LogViewerActivity"
+            android:label="@string/title_logs"
+            android:parentActivityName=".ui.MainActivity" />
 
     </application>
 
