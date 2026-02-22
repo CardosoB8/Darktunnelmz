@@ -517,12 +517,24 @@ public class MainActivity extends AppCompatActivity {
         tvLogs.setText(currentText + message + "\n");
         
         // Auto scroll
-        scrollViewLogs.post(() -> scrollViewLogs.fullScroll(View.FOCUS_DOWN));
+    private void appendLog(String message) {
+        if (tvLogs == null || scrollViewLogs == null) {
+            Log.e("MainActivity", "appendLog chamado antes da UI estar pronta");
+            return;
+        }
+        
+        String currentText = tvLogs.getText().toString();
+        tvLogs.setText(currentText + message + "\n");
+        
+        // Auto scroll - só executa se scrollViewLogs não for nulo
+        if (scrollViewLogs != null) {
+            scrollViewLogs.post(() -> {
+                if (scrollViewLogs != null) {
+                    scrollViewLogs.fullScroll(View.FOCUS_DOWN);
+                }
+            });
+        }
     }
-    
-    private void saveProfile() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.dialog_profile_name);
         
         final EditText input = new EditText(this);
         input.setHint("Nome do perfil");
