@@ -102,7 +102,7 @@ public class ProxyHelper {
         
         try {
             // Wrap with SSL
-            javax.net.ssl.SSLSocketFactory factory = javax.net.ssl.SSLSocketFactory.getDefault();
+            javax.net.ssl.SSLSocketFactory factory = (javax.net.ssl.SSLSocketFactory) javax.net.ssl.SSLSocketFactory.getDefault();
             javax.net.ssl.SSLSocket sslSocket = (javax.net.ssl.SSLSocket) factory.createSocket(
                     socket, targetHost, targetPort, true);
             sslSocket.startHandshake();

@@ -1,3 +1,4 @@
+import android.widget.Button;
 package com.sshtunnel.app.ui;
 
 import android.content.Intent;
