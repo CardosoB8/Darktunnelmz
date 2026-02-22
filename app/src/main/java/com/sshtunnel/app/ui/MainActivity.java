@@ -513,24 +513,18 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void appendLog(String message) {
-        String currentText = tvLogs.getText().toString();
-        tvLogs.setText(currentText + message + "\n");
-        
-        // Auto scroll
-    private void appendLog(String message) {
         if (tvLogs == null || scrollViewLogs == null) {
-            Log.e("MainActivity", "appendLog chamado antes da UI estar pronta");
+            android.util.Log.e("MainActivity", "appendLog chamado antes da UI estar pronta");
             return;
         }
         
         String currentText = tvLogs.getText().toString();
         tvLogs.setText(currentText + message + "\n");
         
-        // Auto scroll - só executa se scrollViewLogs não for nulo
         if (scrollViewLogs != null) {
             scrollViewLogs.post(() -> {
                 if (scrollViewLogs != null) {
-                    scrollViewLogs.fullScroll(View.FOCUS_DOWN);
+                    scrollViewLogs.fullScroll(android.view.View.FOCUS_DOWN);
                 }
             });
         }
