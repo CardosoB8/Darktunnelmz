@@ -1,23 +1,7 @@
-// Top-level build file
-buildscript {
-    ext {
-        compileSdk = 34
-        minSdk = 21
-        targetSdk = 34
-    }
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.0'
-    }
+plugins {
+    id 'com.android.application' version '8.2.2' apply false
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-    }
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
