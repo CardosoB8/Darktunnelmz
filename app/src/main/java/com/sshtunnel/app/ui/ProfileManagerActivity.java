@@ -1,5 +1,5 @@
-import android.widget.Button;
 package com.sshtunnel.app.ui;
+import android.widget.Button;
 
 import android.content.Intent;
 import android.os.Bundle;
