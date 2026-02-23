@@ -20,7 +20,7 @@ import com.sshtunnel.app.ui.MainActivity;
 import java.io.IOException;
 
 /**
- * VPN Service for SSH Tunnel - Versão usando bibliotecas oficiais do Psiphon
+ * VPN Service for SSH Tunnel - Versão usando bibliotecas tun2socks
  */
 public class SSHTunnelVpnService extends VpnService {
     
@@ -102,10 +102,9 @@ public class SSHTunnelVpnService extends VpnService {
     
     private void startTun2Socks() {
         vpnThread = new Thread(() -> {
-            int fd = vpnInterface.getFd();
             String socksServer = "127.0.0.1:" + socksPort;
             
-            LogManager.getInstance().i(TAG, "Iniciando tun2socks com fd=" + fd + ", socks=" + socksServer);
+            LogManager.getInstance().i(TAG, "Iniciando tun2socks com socks=" + socksServer);
             
             // Chamar o método runTun2Socks da biblioteca nativa
             int result = Tun2Socks.runTun2Socks(
@@ -115,14 +114,7 @@ public class SSHTunnelVpnService extends VpnService {
                     "255.255.255.0",
                     socksServer,
                     "",
-                    false);
-                    fd,                     // file descriptor
-                    1500,                   // MTU
-                    "10.0.0.2",             // IP address
-                    "255.255.255.0",        // netmask
-                    socksServer,             // socks server
-                    "",                     // udpgw server (vazio = desabilitado)
-                    0                       // transparent DNS (0 = desabilitado)
+                    false
             );
             
             if (result != 0) {
