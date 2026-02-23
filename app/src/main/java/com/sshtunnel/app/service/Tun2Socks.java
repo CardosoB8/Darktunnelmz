@@ -1,98 +1,129 @@
 package com.sshtunnel.app.service;
 
+import android.content.Context;
+import android.net.VpnService;
 import android.os.ParcelFileDescriptor;
+import android.text.TextUtils;
 import android.util.Log;
 
-/**
- * Tun2Socks native bridge - baseado no código do Tor Project (Orbot) e Psiphon
- * Fonte: https://gitweb.torproject.org/orbot.git
- */
+import androidx.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
 public class Tun2Socks {
-    
-    private static final String TAG = "Tun2Socks";
-    private static boolean isLibraryLoaded = false;
-    
-    static {
-        try {
-            // Tenta carregar libv2tun2socks primeiro (da sua imagem)
-            System.loadLibrary("v2tun2socks");
-            Log.i(TAG, "Biblioteca v2tun2socks carregada com sucesso");
-            isLibraryLoaded = true;
-        } catch (UnsatisfiedLinkError e) {
-            Log.w(TAG, "v2tun2socks não encontrada, tentando tun2socks-udp");
-            try {
-                System.loadLibrary("tun2socks-udp");
-                Log.i(TAG, "Biblioteca tun2socks-udp carregada com sucesso");
-                isLibraryLoaded = true;
-            } catch (UnsatisfiedLinkError e2) {
-                Log.w(TAG, "tun2socks-udp não encontrada, tentando tun2socks");
-                try {
-                    System.loadLibrary("tun2socks");
-                    Log.i(TAG, "Biblioteca tun2socks carregada com sucesso");
-                    isLibraryLoaded = true;
-                } catch (UnsatisfiedLinkError e3) {
-                    Log.e(TAG, "Nenhuma biblioteca tun2socks encontrada!", e3);
-                }
-            }
-        }
-    }
-    
+
+    private static final String TAG = "tun2socks";
+    private static volatile boolean isInitialized = false;
+
     /**
-     * Inicia o tun2socks - assinatura compatível com Tor/Psiphon
+     * Try to load native libraries
+     *
+     * @param context applicationContext
      */
-    public static int runTun2Socks(
+    public static void initialize(Context context) {
+        if (isInitialized) {
+            Log.w(TAG, "initialization before done");
+            return;
+        }
+
+        System.loadLibrary("tun2socks");
+        isInitialized = true;
+    }
+
+    /**
+     * try to start badvpn-tunsocks (call this in separate thread)
+     *
+     * @param logLevel                   one of {@link LogLevel}
+     * @param vpnInterfaceFileDescriptor the file descriptor after you called {@link
+     *                                   VpnService.Builder#establish()}
+     * @param vpnInterfaceMtu            tun mtu, also must set this value for vpn interface by calling {@link
+     *                                   VpnService.Builder#setMtu(int)}
+     * @param socksServerAddress         socks5 server address
+     * @param socksServerPort            socks5 server port
+     * @param netIPv4Address             an ipv4 address
+     * @param netIPv6Address             if not null, tun2socks will process ipv6 packets too
+     * @param netmask                    netmask for example 255.255.255.0
+     * @param forwardUdp                 if socks5 server support UDP, set this to true otherwise set to false
+     * @return true of process finished successfully false if there is a problem!
+     */
+    public static boolean startTun2Socks(
+            LogLevel logLevel,
             ParcelFileDescriptor vpnInterfaceFileDescriptor,
-            int vpnInterfaceMTU,
-            String vpnIpAddress,
-            String vpnNetMask,
+            int vpnInterfaceMtu,
             String socksServerAddress,
-            String udpgwServerAddress,
-            boolean udpgwTransparentDNS) {
-        
-        if (!isLibraryLoaded) {
-            Log.e(TAG, "Biblioteca tun2socks não carregada");
-            return -1;
+            int socksServerPort,
+            String netIPv4Address,
+            @Nullable String netIPv6Address,
+            String netmask,
+            boolean forwardUdp,
+            List<String> extraArgs) {
+        // TODO: 9/26/21 "--dnsgw", "127.0.0.1:5353"
+
+        ArrayList<String> arguments = new ArrayList<>();
+        arguments.add("badvpn-tun2socks"); // app name (:D)
+        arguments.addAll(
+                Arrays.asList("--logger", "stdout")); // set logger to stdout so can see logs in logcat
+        arguments.addAll(
+                Arrays.asList("--loglevel", String.valueOf(logLevel.ordinal()))); // set log level
+        arguments.addAll(
+                Arrays.asList("--tunfd", String.valueOf(vpnInterfaceFileDescriptor.getFd()))); // set fd
+        arguments.addAll(Arrays.asList("--tunmtu", String.valueOf(vpnInterfaceMtu)));
+        arguments.addAll(Arrays.asList("--netif-ipaddr", netIPv4Address));
+
+        if (!TextUtils.isEmpty(netIPv6Address)) {
+            arguments.addAll(Arrays.asList("--netif-ip6addr", netIPv6Address));
         }
-        
-        if (vpnInterfaceFileDescriptor == null) {
-            Log.e(TAG, "FileDescriptor nulo");
-            return -1;
+
+        arguments.addAll(Arrays.asList("--netif-netmask", netmask));
+        arguments.addAll(
+                Arrays.asList(
+                        "--socks-server-addr",
+                        String.format(Locale.US, "%s:%d", socksServerAddress, socksServerPort)));
+
+        if (forwardUdp) {
+            arguments.add("--socks5-udp");
         }
-        
-        return nativeRunTun2Socks(
-                vpnInterfaceFileDescriptor.detachFd(),
-                vpnInterfaceMTU,
-                vpnIpAddress,
-                vpnNetMask,
-                socksServerAddress,
-                udpgwServerAddress,
-                udpgwTransparentDNS ? 1 : 0);
+        arguments.addAll(extraArgs);
+
+        int exitCode = start_tun2socks(arguments.toArray(new String[]{}));
+        return exitCode == 0;
     }
-    
+
     /**
-     * Para o tun2socks
+     * start tun2socks with args
+     *
+     * @param args like when you run main() method on c!
+     * @return other than zero mean failed
      */
-    public static native void terminateTun2Socks();
-    
+    private static native int start_tun2socks(String[] args);
+
     /**
-     * Callback para logs (chamado pela biblioteca nativa)
+     * try to stop badvpn-tun2socks
      */
-    public static void logTun2Socks(String level, String channel, String msg) {
-        String logMsg = level + "(" + channel + "): " + msg;
-        if ("ERROR".equals(level)) {
-            Log.e(TAG, logMsg);
-        } else {
-            Log.d(TAG, logMsg);
-        }
+    public static native void stopTun2Socks();
+
+    /**
+     * print usage help in logcat
+     */
+    public static native void printTun2SocksHelp();
+
+    /**
+     * print version in logcat
+     */
+    public static native void printTun2SocksVersion();
+
+    /**
+     * badvpn-tun2socks logLevel
+     */
+    public enum LogLevel {
+        NONE, // 0
+        ERROR, // 1
+        WARNING, // 2
+        NOTICE, // 3
+        INFO, // 4
+        DEBUG // 5
     }
-    
-    // Método nativo com a assinatura do Tor/Psiphon
-    private static native int nativeRunTun2Socks(
-            int vpnInterfaceFileDescriptor,
-            int vpnInterfaceMTU,
-            String vpnIpAddress,
-            String vpnNetMask,
-            String socksServerAddress,
-            String udpgwServerAddress,
-            int udpgwTransparentDNS);
 }
