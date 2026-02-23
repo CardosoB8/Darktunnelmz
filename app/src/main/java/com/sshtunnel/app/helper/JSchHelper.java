@@ -9,6 +9,7 @@ import com.sshtunnel.app.model.ConnectionStatus;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
@@ -46,6 +47,21 @@ public class JSchHelper {
     
     public JSchHelper() {
         this.jsch = new JSch();
+    }
+    
+    private int findAvailablePort() {
+        for (int port = 1080; port < 1180; port++) {
+            try {
+                ServerSocket socket = new ServerSocket(port);
+                socket.close();
+                Log.d(TAG, "Porta disponível encontrada: " + port);
+                return port;
+            } catch (Exception e) {
+                // Porta ocupada, tenta próxima
+            }
+        }
+        Log.w(TAG, "Nenhuma porta disponível encontrada, usando 1080");
+        return 1080; // fallback
     }
     
     public void setConnectionListener(ConnectionListener listener) {
@@ -314,9 +330,10 @@ public class JSchHelper {
     private void setupPortForwarding() throws JSchException {
         log("Configurando redirecionamento de porta…");
         
-        // Setup dynamic port forwarding (SOCKS5)
-        // Usar porta aleatória disponível
+        // Usar porta dinâmica
         localSocksPort = findAvailablePort();
+        
+        // Setup dynamic port forwarding (SOCKS5)
         session.setPortForwardingL(localSocksPort, "0.0.0.0", 1080);
         log("SOCKS5 proxy disponível em localhost:" + localSocksPort);
         
