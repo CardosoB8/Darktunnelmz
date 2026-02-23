@@ -385,7 +385,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startVpnService() {
-        int socksPort = sshService != null ? sshService.getLocalSocksPort() : 1080;
+        int socksPort = sshService != null ? sshService.getLocalSocksPort() : findAvailablePort();
         Intent intent = new Intent(this, SSHTunnelVpnService.class);
         intent.setAction(SSHTunnelVpnService.ACTION_CONNECT);
         intent.putExtra("socks_port", socksPort);

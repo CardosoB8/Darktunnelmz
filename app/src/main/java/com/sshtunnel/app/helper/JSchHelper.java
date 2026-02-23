@@ -315,7 +315,8 @@ public class JSchHelper {
         log("Configurando redirecionamento de porta…");
         
         // Setup dynamic port forwarding (SOCKS5)
-        localSocksPort = config.getLocalSocksPort();
+        // Usar porta aleatória disponível
+        localSocksPort = findAvailablePort();
         session.setPortForwardingL(localSocksPort, "0.0.0.0", 1080);
         log("SOCKS5 proxy disponível em localhost:" + localSocksPort);
         
