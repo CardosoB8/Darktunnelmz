@@ -160,32 +160,33 @@
                     android:layout_marginBottom="4dp" />
 
                 <EditText
-
-        <!-- SNI (apenas para TLS) -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:gravity="center_horizontal"
-            android:text="SNI"
-            android:textSize="12sp"
-            android:textColor="#008DCD"
-            android:layout_marginTop="8dp" />
-
-        <EditText
-            android:id="@+id/edittext2sni"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:textSize="12sp"
-            android:hint="m.facebook.com"
-            android:background="@drawable/edittext_background" />
                     android:id="@+id/edittext_tls_cert"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
                     android:textSize="12sp"
                     android:hint="caminho do certificado"
+                    android:background="@drawable/edittext_background"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- SNI (apenas para TLS) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:gravity="center_horizontal"
+                    android:text="SNI"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginTop="8dp" />
+
+                <EditText
+                    android:id="@+id/edittext2sni"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:hint="m.facebook.com"
                     android:background="@drawable/edittext_background" />
             </LinearLayout>
 
@@ -251,26 +252,6 @@
                 android:hint="GET / HTTP/1.1[crlf]Host: [host][crlf]User-Agent: [ua][crlf][crlf]"
                 android:background="@drawable/edittext_background"
                 android:layout_marginBottom="8dp" />
-
-<!--             <!-- SNI --> -->
-<!--             <TextView -->
-<!--                 android:layout_width="match_parent" -->
-<!--                 android:layout_height="wrap_content" -->
-<!--                 android:padding="8dp" -->
-<!--                 android:gravity="center_horizontal" -->
-<!--                 android:text="SNI" -->
-<!--                 android:textSize="12sp" -->
-<!--                 android:textColor="#008DCD" /> -->
-<!--  -->
-<!--             <EditText -->
-<!--                 android:id="@+id/edittext2sni" -->
-<!--                 android:layout_width="match_parent" -->
-<!--                 android:layout_height="wrap_content" -->
-<!--                 android:padding="8dp" -->
-<!--                 android:textSize="12sp" -->
-<!--                 android:hint="m.facebook.com" -->
-<!--                 android:background="@drawable/edittext_background" -->
-<!--                 android:layout_marginBottom="8dp" /> -->
 
             <!-- Logs -->
             <TextView
