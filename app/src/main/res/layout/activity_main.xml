@@ -1,496 +1,195 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout 
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/backgroundLight">
+    android:orientation="vertical"
+    android:background="#FFFFFF">
 
-    <!-- Toolbar -->
-    <com.google.android.material.appbar.AppBarLayout
+    <!-- Top Bar -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/ToolbarTheme">
+        android:padding="8dp"
+        android:orientation="horizontal"
+        android:background="#FFFFFF">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/colorPrimary"
-            app:title="@string/app_name"
-            app:titleTextColor="@color/textWhite" />
-    </com.google.android.material.appbar.AppBarLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="DS TUNNEL"
+            android:textSize="16sp"
+            android:textColor="#008DCD"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-    <!-- Scrollable Content -->
-    <androidx.core.widget.NestedScrollView
+    <!-- Main Content -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:padding="8dp"
+        android:orientation="vertical">
 
+        <!-- Top Controls Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="@dimen/activity_horizontal_margin">
+            android:padding="8dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <!-- Status Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
+                android:padding="8dp"
+                android:text="SSH"
+                android:textSize="12sp"
+                android:textColor="#008DCD" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Status"
-                        android:textSize="@dimen/text_size_normal"
-                        android:textColor="@color/textSecondary" />
-
-                    <TextView
-                        android:id="@+id/tvStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/status_disconnected"
-                        android:textSize="@dimen/text_size_title"
-                        android:textStyle="bold"
-                        android:textColor="@color/statusDisconnected" />
-
-                    <TextView
-                        android:id="@+id/tvConnectionInfo"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text=""
-                        android:textSize="@dimen/text_size_small"
-                        android:textColor="@color/textSecondary"
-                        android:visibility="gone" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- SSH Configuration Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
+            <Spinner
+                android:id="@+id/spinner1_metodo_choose"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
+                android:layout_weight="1"
+                android:padding="8dp"
+                android:spinnerMode="dropdown" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Configuração SSH"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:textColor="@color/textPrimary"
-                        android:layout_marginBottom="@dimen/input_margin" />
-
-                    <!-- Host -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/input_margin"
-                        style="@style/InputStyle"
-                        hint="@string/hint_host">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etHost"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="text"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Port -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/input_margin"
-                        style="@style/InputStyle"
-                        hint="@string/hint_port">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etPort"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number"
-                            android:text="22"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Username -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/input_margin"
-                        style="@style/InputStyle"
-                        hint="@string/hint_username">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etUsername"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="text"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Password -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/input_margin"
-                        style="@style/InputStyle"
-                        hint="@string/hint_password"
-                        app:endIconMode="password_toggle">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etPassword"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Private Key Option -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <com.google.android.material.checkbox.MaterialCheckBox
-                            android:id="@+id/cbUsePrivateKey"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Usar chave privada" />
-
-                        <Button
-                            android:id="@+id/btnSelectKey"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Selecionar"
-                            android:visibility="gone"
-                            style="@style/Widget.Material3.Button.TextButton" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvKeyPath"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="@dimen/text_size_small"
-                        android:textColor="@color/textSecondary"
-                        android:visibility="gone" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Connection Mode Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
+            <Spinner
+                android:id="@+id/spinner2_import_or_export_config"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
+                android:padding="8dp"
+                android:spinnerMode="dropdown" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
+            <ImageView
+                android:id="@+id/ivSettings"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_settings"
+                android:padding="8dp"
+                android:background="@drawable/circle_background_blue" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_connection_mode"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:textColor="@color/textPrimary"
-                        android:layout_marginBottom="@dimen/input_margin" />
-
-                    <Spinner
-                        android:id="@+id/spinnerConnectionMode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/spinner_background" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Payload Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Payload HTTP/HTTPS"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:textColor="@color/textPrimary"
-                        android:layout_marginBottom="@dimen/input_margin" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/input_margin"
-                        style="@style/InputStyle"
-                        hint="@string/hint_payload">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etPayload"
-                            android:layout_width="match_parent"
-                            android:layout_height="120dp"
-                            android:inputType="textMultiLine"
-                            android:gravity="top"
-                            android:scrollbars="vertical" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <Button
-                        android:id="@+id/btnGeneratePayload"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/btn_generate_payload"
-                        style="@style/Widget.Material3.Button.TextButton" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- SNI Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SNI (Server Name Indication)"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:textColor="@color/textPrimary"
-                        android:layout_marginBottom="@dimen/input_margin" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        style="@style/InputStyle"
-                        hint="@string/hint_sni">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etSNI"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="text"
-                            android:maxLines="1" />
-                    </com.google.android.material.textfield.TextInputLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Proxy Configuration Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Configuração de Proxy"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:textColor="@color/textPrimary"
-                        android:layout_marginBottom="@dimen/input_margin" />
-
-                    <!-- Proxy Type -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_proxy_type"
-                        android:textSize="@dimen/text_size_normal"
-                        android:textColor="@color/textSecondary"
-                        android:layout_marginBottom="4dp" />
-
-                    <Spinner
-                        android:id="@+id/spinnerProxyType"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/input_margin"
-                        android:background="@drawable/spinner_background" />
-
-                    <!-- Proxy Host and Port -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:layout_marginEnd="8dp"
-                            style="@style/InputStyle"
-                            hint="@string/hint_proxy_host">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etProxyHost"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            style="@style/InputStyle"
-                            hint="@string/hint_proxy_port">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etProxyPort"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:maxLines="1" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Logs Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/card_margin"
-                app:cardCornerRadius="@dimen/corner_radius"
-                app:cardElevation="@dimen/elevation">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Logs"
-                        android:textSize="@dimen/text_size_large"
-                        android:textStyle="bold"
-                        android:textColor="@color/textPrimary"
-                        android:layout_marginBottom="@dimen/input_margin" />
-
-                    <ScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="150dp"
-                        android:background="@color/inputBackground"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:id="@+id/tvLogs"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            style="@style/LogTextStyle"
-                            android:text=""
-                            android:textColor="@color/textPrimary" />
-                    </ScrollView>
-
-                    <Button
-                        android:id="@+id/btnClearLogs"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/btn_clear_logs"
-                        style="@style/Widget.Material3.Button.TextButton" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Action Buttons -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="@dimen/button_margin"
-                android:layout_marginBottom="@dimen/button_margin">
-
-                <Button
-                    android:id="@+id/btnConnect"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/btn_connect"
-                    style="@style/BtnConnectStyle" />
-
-                <Button
-                    android:id="@+id/btnDisconnect"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/btn_disconnect"
-                    android:visibility="gone"
-                    style="@style/BtnDisconnectStyle" />
-            </LinearLayout>
-
-            <!-- Profile Buttons -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="@dimen/button_margin">
-
-                <Button
-                    android:id="@+id/btnSaveProfile"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/btn_save_profile"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-
-                <Button
-                    android:id="@+id/btnLoadProfile"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/btn_load_profile"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-            </LinearLayout>
-
+            <ImageView
+                android:id="@+id/ivReset"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_reset"
+                android:padding="8dp"
+                android:background="@drawable/circle_background_blue" />
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+        <!-- Input Fields -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:orientation="vertical">
+
+            <!-- Payload -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:gravity="center_horizontal"
+                android:text="Payload"
+                android:textSize="12sp"
+                android:textColor="#008DCD" />
+
+            <EditText
+                android:id="@+id/edittext1payload"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:hint="GET / HTTP/1.1[crlf]Host: [host][crlf]User-Agent: [ua][crlf][crlf]"
+                android:background="@drawable/edittext_background"
+                android:layout_marginBottom="8dp" />
+
+            <!-- SNI -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:gravity="center_horizontal"
+                android:text="SNI"
+                android:textSize="12sp"
+                android:textColor="#008DCD" />
+
+            <EditText
+                android:id="@+id/edittext2sni"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:hint="m.facebook.com"
+                android:background="@drawable/edittext_background"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Proxy -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:gravity="center_horizontal"
+                android:text="Proxy"
+                android:textSize="12sp"
+                android:textColor="#008DCD" />
+
+            <EditText
+                android:id="@+id/edittext3proxy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:hint="10.100.100.100:80"
+                android:background="@drawable/edittext_background" />
+        </LinearLayout>
+
+        <!-- Logs -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="Logs"
+            android:textSize="12sp"
+            android:textColor="#008DCD" />
+
+        <ScrollView
+            android:id="@+id/vscroll1"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:background="#F5F5F5">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/textview8logs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:fontFamily="monospace" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Connect Button -->
+        <Button
+            android:id="@+id/btnConnect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:text="CONNECT"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#008DCD"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+</LinearLayout>

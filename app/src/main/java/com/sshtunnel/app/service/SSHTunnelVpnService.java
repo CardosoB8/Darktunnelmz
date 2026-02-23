@@ -188,6 +188,9 @@ public class SSHTunnelVpnService extends VpnService {
             Log.e(TAG, "Erro ao iniciar tun2socks", e);
         }
     }
+            Log.e(TAG, "Erro ao iniciar tun2socks", e);
+        }
+    }
                 Thread.currentThread().interrupt();
                 break;
             }
