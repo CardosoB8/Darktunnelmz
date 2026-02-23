@@ -98,13 +98,13 @@
   <meta name="route-pattern" content="/:user_id/:repository/raw/*name(/*path)" data-turbo-transient>
   <meta name="route-controller" content="blob" data-turbo-transient>
   <meta name="route-action" content="raw" data-turbo-transient>
-  <meta name="fetch-nonce" content="v2:aeac2d1d-99b2-9a1a-2bf1-7703b739b479">
+  <meta name="fetch-nonce" content="v2:0116862c-c00d-cc16-a565-212f4cdab1ba">
 
     
   <meta name="current-catalog-service-hash" content="f3abb0cc802f3d7b95fc8762b94bdcb13bf39634c40c357301c4aa1d67a256fb">
 
 
-  <meta name="request-id" content="AA9C:225F68:D2B04:1281FB:699C4D3B" data-turbo-transient="true" /><meta name="html-safe-nonce" content="9b1c512b7af6daa0724920a33b2649aed4f8956f38ca408ef2645fc2747c14e1" data-turbo-transient="true" /><meta name="visitor-payload" content="eyJyZWZlcnJlciI6bnVsbCwicmVxdWVzdF9pZCI6IkFBOUM6MjI1RjY4OkQyQjA0OjEyODFGQjo2OTlDNEQzQiIsInZpc2l0b3JfaWQiOiI4NzExMDI1MDY3NzY0MjM5Njc2IiwicmVnaW9uX2VkZ2UiOiJzb3V0aGFmcmljYW5vcnRoIiwicmVnaW9uX3JlbmRlciI6ImlhZCJ9" data-turbo-transient="true" /><meta name="visitor-hmac" content="66579332c819f36958c9f0e27e6d564eb7a2765a1acb1941b6bb388d91913ee5" data-turbo-transient="true" />
+  <meta name="request-id" content="D6FC:3791FE:D530F:12AA75:699C4D3F" data-turbo-transient="true" /><meta name="html-safe-nonce" content="a4fa3f98ff487ecf6beb273f541dd21fdbadc627d7f919c3fb346c7043f9451f" data-turbo-transient="true" /><meta name="visitor-payload" content="eyJyZWZlcnJlciI6bnVsbCwicmVxdWVzdF9pZCI6IkQ2RkM6Mzc5MUZFOkQ1MzBGOjEyQUE3NTo2OTlDNEQzRiIsInZpc2l0b3JfaWQiOiI2NzUxNjg2NDAwNjUwNTMwMTEyIiwicmVnaW9uX2VkZ2UiOiJzb3V0aGFmcmljYW5vcnRoIiwicmVnaW9uX3JlbmRlciI6ImlhZCJ9" data-turbo-transient="true" /><meta name="visitor-hmac" content="e4691c7e57f763fe5bde5df43fb1c54e58a4ecaf36a77c6ea7388c65cad9af0a" data-turbo-transient="true" />
 
 
     <meta name="hovercard-subject-tag" content="repository:209140296" data-turbo-transient>
@@ -113,7 +113,7 @@
   <meta name="github-keyboard-shortcuts" content="copilot" data-turbo-transient="true" />
   
 
-  <meta name="selected-link" value="/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so" data-turbo-transient>
+  <meta name="selected-link" value="/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so" data-turbo-transient>
   <link rel="assets" href="https://github.githubassets.com/">
 
     <meta name="google-site-verification" content="Apib7-x98H0j5cPqHWwSMm6dNU4GmODRoqxLiDzdx9I">
@@ -145,7 +145,7 @@
 
     <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
     <meta property="fb:app_id" content="1401488693436528">
-    <meta name="apple-itunes-app" content="app-id=1477376905, app-argument=https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so" />
+    <meta name="apple-itunes-app" content="app-id=1477376905, app-argument=https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so" />
 
       <meta property="og:url" content="https://github.com">
   <meta property="og:site_name" content="GitHub">
@@ -200,7 +200,7 @@
 
 
 
-      <link rel="canonical" href="https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so" data-turbo-transient>
+      <link rel="canonical" href="https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so" data-turbo-transient>
 
 
     <meta name="turbo-body-classes" content="logged-out env-production page-responsive min-height-full d-flex flex-column">
@@ -302,19 +302,19 @@
 
       <div class="d-flex flex-1 flex-order-2 text-right d-lg-none gap-2 flex-justify-end">
           <a
-            href="/login?return_to=https%3A%2F%2Fgithub.com%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibtun2socks.so"
+            href="/login?return_to=https%3A%2F%2Fgithub.com%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibjni.so"
             class="HeaderMenu-link HeaderMenu-button d-inline-flex f5 no-underline border color-border-default rounded-2 px-2 py-1 color-fg-inherit js-prevent-focus-on-mobile-nav"
-            data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="87db7c40044b1c3232176359070b23b40817b493b9b28cf6c53fcf7283799d7c"
+            data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="e3edbac2e157918f1620bee275b3a00b7089152b8ed4d6c234e24a8151b72490"
             data-analytics-event="{&quot;category&quot;:&quot;Marketing nav&quot;,&quot;action&quot;:&quot;click to Sign in&quot;,&quot;label&quot;:&quot;ref_page:Marketing;ref_cta:Sign in;ref_loc:Header&quot;}"
           >
             Sign in
           </a>
               <div class="AppHeader-appearanceSettings">
     <react-partial-anchor>
-      <button data-target="react-partial-anchor.anchor" id="icon-button-29aa3775-6392-4f22-aab1-9a9d7ec59cb9" aria-labelledby="tooltip-5d52f078-3537-47d1-b547-0c46a31e6d5f" type="button" disabled="disabled" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border cursor-wait">  <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-sliders Button-visual">
+      <button data-target="react-partial-anchor.anchor" id="icon-button-6eebe3f0-2649-492e-a74a-c86d28b56984" aria-labelledby="tooltip-2889b5e6-f870-4b81-96f3-e3af22e088a8" type="button" disabled="disabled" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border cursor-wait">  <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-sliders Button-visual">
     <path d="M15 2.75a.75.75 0 0 1-.75.75h-4a.75.75 0 0 1 0-1.5h4a.75.75 0 0 1 .75.75Zm-8.5.75v1.25a.75.75 0 0 0 1.5 0v-4a.75.75 0 0 0-1.5 0V2H1.75a.75.75 0 0 0 0 1.5H6.5Zm1.25 5.25a.75.75 0 0 0 0-1.5h-6a.75.75 0 0 0 0 1.5h6ZM15 8a.75.75 0 0 1-.75.75H11.5V10a.75.75 0 1 1-1.5 0V6a.75.75 0 0 1 1.5 0v1.25h2.75A.75.75 0 0 1 15 8Zm-9 5.25v-2a.75.75 0 0 0-1.5 0v1.25H1.75a.75.75 0 0 0 0 1.5H4.5v1.25a.75.75 0 0 0 1.5 0v-2Zm9 0a.75.75 0 0 1-.75.75h-6a.75.75 0 0 1 0-1.5h6a.75.75 0 0 1 .75.75Z"></path>
 </svg>
-</button><tool-tip id="tooltip-5d52f078-3537-47d1-b547-0c46a31e6d5f" for="icon-button-29aa3775-6392-4f22-aab1-9a9d7ec59cb9" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Appearance settings</tool-tip>
+</button><tool-tip id="tooltip-2889b5e6-f870-4b81-96f3-e3af22e088a8" for="icon-button-6eebe3f0-2649-492e-a74a-c86d28b56984" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Appearance settings</tool-tip>
 
       <template data-target="react-partial-anchor.template">
         <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.257816c5781f334a.module.css" />
@@ -362,7 +362,7 @@
                 
 
 
-<qbsearch-input class="search-input" data-scope="" data-custom-scopes-path="/search/custom_scopes" data-delete-custom-scopes-csrf="ffCObRquZ1sxjqRoAdAvQ_zqFtq1CFvRrQFpAEifF1NRrQ2HETdvMVPbHDHeLk9djeyqIuHzoQV7mgUrFFDlvQ" data-max-custom-scopes="10" data-header-redesign-enabled="false" data-initial-value="" data-blackbird-suggestions-path="/search/suggestions" data-jump-to-suggestions-path="/_graphql/GetSuggestedNavigationDestinations" data-current-repository="" data-current-org="" data-current-owner="" data-logged-in="false" data-copilot-chat-enabled="false" data-nl-search-enabled="false" data-retain-scroll-position="true">
+<qbsearch-input class="search-input" data-scope="" data-custom-scopes-path="/search/custom_scopes" data-delete-custom-scopes-csrf="sYN0klaVczv_RBighPzx8hM8tx5fQBZahO33xOwSeauLxEGHUIiQ4ksGpbapP5Mf6e_Qk1Ikw0OlYO_4UVnaWA" data-max-custom-scopes="10" data-header-redesign-enabled="false" data-initial-value="" data-blackbird-suggestions-path="/search/suggestions" data-jump-to-suggestions-path="/_graphql/GetSuggestedNavigationDestinations" data-current-repository="" data-current-org="" data-current-owner="" data-logged-in="false" data-copilot-chat-enabled="false" data-nl-search-enabled="false" data-retain-scroll-position="true">
   <div
     class="search-input-container search-with-dialog position-relative d-flex flex-row flex-items-center mr-4 rounded"
     data-action="click:qbsearch-input#searchInputContainerClicked"
@@ -426,7 +426,7 @@
           ></div>
           <div class="QueryBuilder-InputWrapper">
             <div aria-hidden="true" class="QueryBuilder-Sizer" data-target="query-builder.sizer"></div>
-            <input id="query-builder-test" name="query-builder-test" value="" autocomplete="off" type="text" role="combobox" spellcheck="false" aria-expanded="false" aria-describedby="validation-2c0cd8eb-4e30-49e1-93cf-70f82039651e" data-target="query-builder.input" data-action="
+            <input id="query-builder-test" name="query-builder-test" value="" autocomplete="off" type="text" role="combobox" spellcheck="false" aria-expanded="false" aria-describedby="validation-13b164c1-6b14-4025-bb05-fe9064a0cc02" data-target="query-builder.input" data-action="
           input:query-builder#inputChange
           blur:query-builder#inputBlur
           keydown:query-builder#inputKeydown
@@ -667,7 +667,7 @@
             ></ul>
 
         </div>
-      <div class="FormControl-inlineValidation" id="validation-2c0cd8eb-4e30-49e1-93cf-70f82039651e" hidden="hidden">
+      <div class="FormControl-inlineValidation" id="validation-13b164c1-6b14-4025-bb05-fe9064a0cc02" hidden="hidden">
         <span class="FormControl-inlineValidation--visual">
           <svg aria-hidden="true" height="12" viewBox="0 0 12 12" version="1.1" width="12" data-view-component="true" class="octicon octicon-alert-fill">
     <path d="M4.855.708c.5-.896 1.79-.896 2.29 0l4.675 8.351a1.312 1.312 0 0 1-1.146 1.954H1.33A1.313 1.313 0 0 1 .183 9.058ZM7 7V3H5v4Zm-1 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path>
@@ -708,7 +708,7 @@
   
 </div>
       <scrollable-region data-labelled-by="feedback-dialog-title">
-        <div data-view-component="true" class="Overlay-body">        <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="code-search-feedback-form" data-turbo="false" action="/search/feedback" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="MdPGqTU2EUMrS5IOAJXSLinJ_8SF6I31SrrxEI7bb09-DNOuSpdzChhj35qZ5rwRpf04ugrYS6iKyJ0odBvhsQ" />
+        <div data-view-component="true" class="Overlay-body">        <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="code-search-feedback-form" data-turbo="false" action="/search/feedback" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="yCmY_atPPzv03lpdsDZe7MQA6_OqBopmM_zx-Dde577iMPmgFYv6bUiP3sWYJYI4Ear-MZFJBw0kPndfGwAWWw" />
           <p>We read every piece of feedback, and take your input very seriously.</p>
           <textarea name="feedback" class="form-control width-full mb-2" style="height: 120px" id="feedback"></textarea>
           <input name="include_email" id="include_email" aria-label="Include my email address so I can be contacted" class="form-control mr-2" type="checkbox">
@@ -746,7 +746,7 @@
         <div data-view-component="true" class="Overlay-body">        <div data-target="custom-scopes.customScopesModalDialogFlash"></div>
 
         <div hidden class="create-custom-scope-form" data-target="custom-scopes.createCustomScopeForm">
-        <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="custom-scopes-dialog-form" data-turbo="false" action="/search/custom_scopes" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="Rfu-L6jqzFqrNXJj5qEMEJR6PrY7Z52nOwMzxmI98UPClz5WDxVnLyD45eu22u0eOFnU9zsGJQStk4SytzO-gQ" />
+        <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="custom-scopes-dialog-form" data-turbo="false" action="/search/custom_scopes" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="vrG5qrb9V_mCgnv-5qKp6tluZk7uLuGxcFIcKIT0m6SXAi6ZG3OqN2orWiKAnOs168KrZaQzXvYKdoTjirQBQw" />
           <div data-target="custom-scopes.customScopesModalDialogFlash"></div>
 
           <input type="hidden" id="custom_scope_id" name="custom_scope_id" data-target="custom-scopes.customScopesIdField">
@@ -764,7 +764,7 @@
                 placeholder="github-ruby"
                 required
                 maxlength="50">
-              <input type="hidden" value="zBzYM0MTv3TBHDLJpxEcTG__zdumSjtdAqk1t-nTLS_UeYb-pPBpMfuDQtoZwrqvf5nZDbuPwOqDsH1A_3kt6Q" data-csrf="true" />
+              <input type="hidden" value="QH4uzOWecyaO4flRUTyYNmeHiPlqSlrm8eA4AQlTQZt3rDtJ3D9JQbXHsxGd0uBdd6aFkL-QDqMCdUSEtK3QWg" data-csrf="true" />
             </auto-check>
           </div>
 
@@ -806,10 +806,10 @@
 
             <div class="position-relative HeaderMenu-link-wrap d-lg-inline-block">
               <a
-                href="/login?return_to=https%3A%2F%2Fgithub.com%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibtun2socks.so"
+                href="/login?return_to=https%3A%2F%2Fgithub.com%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibjni.so"
                 class="HeaderMenu-link HeaderMenu-link--sign-in HeaderMenu-button flex-shrink-0 no-underline d-none d-lg-inline-flex border border-lg-0 rounded px-2 py-1"
                 style="margin-left: 12px;"
-                data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="87db7c40044b1c3232176359070b23b40817b493b9b28cf6c53fcf7283799d7c"
+                data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="e3edbac2e157918f1620bee275b3a00b7089152b8ed4d6c234e24a8151b72490"
                 data-analytics-event="{&quot;category&quot;:&quot;Marketing nav&quot;,&quot;action&quot;:&quot;click to go to homepage&quot;,&quot;label&quot;:&quot;ref_page:Marketing;ref_cta:Sign in;ref_loc:Header&quot;}"
               >
                 Sign in
@@ -819,7 +819,7 @@
     <h4 data-view-component="true" class="color-fg-default mb-2">                    Sign in to GitHub
 </h4>
                         
-<!-- '"` --><!-- </textarea></xmp> --></option></form><form data-turbo="false" action="/session" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="TsURd2A3DgTKqsAMxasnAXcFfaZBC53vFyRBEOjDdzafMHujUgkDxW3EiO74mg-usmKvc5BWR3GRKAM815gmaA" />  <input type="hidden" name="add_account" id="add_account" autocomplete="off" class="form-control" />
+<!-- '"` --><!-- </textarea></xmp> --></option></form><form data-turbo="false" action="/session" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="-breA3gQpTmjfDIb80-LFSjRCWyIq9EDtYFVwVXxSdSVR3HmXsDiDe319l9mA5p8ZdnznnWmnAYnR9VFPcuZvg" />  <input type="hidden" name="add_account" id="add_account" autocomplete="off" class="form-control" />
 
     <label for="login_field">
       Username or email address
@@ -837,17 +837,17 @@
 <input type="hidden" class="js-support" name="javascript-support" value="unknown">
 <input type="hidden" class="js-webauthn-support" name="webauthn-support" value="unknown">
 <input type="hidden" class="js-webauthn-iuvpaa-support" name="webauthn-iuvpaa-support" value="unknown">
-<input type="hidden" name="return_to" id="return_to" value="https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so" autocomplete="off" class="form-control" />
+<input type="hidden" name="return_to" id="return_to" value="https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so" autocomplete="off" class="form-control" />
 <input type="hidden" name="allow_signup" id="allow_signup" autocomplete="off" class="form-control" />
 <input type="hidden" name="client_id" id="client_id" autocomplete="off" class="form-control" />
 <input type="hidden" name="integration" id="integration" autocomplete="off" class="form-control" />
-<input type="text" name="required_field_dd87" hidden="hidden" class="form-control" /><input type="hidden" name="timestamp" value="1771851068393" autocomplete="off" class="form-control" /><input type="hidden" name="timestamp_secret" value="7173523f81273c1c92068cd2e493c9025cda05c095c5c75f08383bb8f8d00ad3" autocomplete="off" class="form-control" />
+<input type="text" name="required_field_e79a" hidden="hidden" class="form-control" /><input type="hidden" name="timestamp" value="1771851072849" autocomplete="off" class="form-control" /><input type="hidden" name="timestamp_secret" value="67de0347cd970cfecabe874fceb07119a7185c417a34e2ecb14d207d0e853d61" autocomplete="off" class="form-control" />
 
     <input type="submit" name="commit" value="Sign in" class="btn btn-primary btn-block js-sign-in-button" data-disable-with="Signing in…" data-signin-label="Sign in" data-sso-label="Sign in with your identity provider" development="false" disable-emu-sso="false" />
   </div>
 </form>  <webauthn-status class="js-webauthn-login-emu-control">
         <div data-target="webauthn-status.partial" class="d-flex flex-justify-between flex-column mt-3 mb-0" hidden>
-          <a href="/login?return_to=https%3A%2F%2Fgithub.com%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibtun2socks.so" data-analytics-event="{&quot;category&quot;:&quot;passkey_404_login&quot;,&quot;action&quot;:&quot;clicked&quot;,&quot;label&quot;:null}" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+          <a href="/login?return_to=https%3A%2F%2Fgithub.com%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibjni.so" data-analytics-event="{&quot;category&quot;:&quot;passkey_404_login&quot;,&quot;action&quot;:&quot;clicked&quot;,&quot;label&quot;:null}" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
     <span class="Button-label">or continue with other methods</span>
   </span>
 </a>
@@ -857,20 +857,20 @@
 
 </div></div>            </div>
 
-              <a href="/signup?ref_cta=Sign+up&amp;ref_loc=header+logged+out&amp;ref_page=%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibtun2socks.so&amp;source=header"
+              <a href="/signup?ref_cta=Sign+up&amp;ref_loc=header+logged+out&amp;ref_page=%2Fpsiphon-labs%2Fpsiphon-tunnel-core-binaries%2Fraw%2Fmaster%2Fandroid%2Farmeabi-v7a%2Flibjni.so&amp;source=header"
                 class="HeaderMenu-link HeaderMenu-link--sign-up HeaderMenu-button flex-shrink-0 d-flex d-lg-inline-flex no-underline border color-border-default rounded px-2 py-1"
-                data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="87db7c40044b1c3232176359070b23b40817b493b9b28cf6c53fcf7283799d7c"
-                data-analytics-event="{&quot;category&quot;:&quot;Sign up&quot;,&quot;action&quot;:&quot;click to sign up for account&quot;,&quot;label&quot;:&quot;ref_page:/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libtun2socks.so;ref_cta:Sign up;ref_loc:header logged out&quot;}"
+                data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="e3edbac2e157918f1620bee275b3a00b7089152b8ed4d6c234e24a8151b72490"
+                data-analytics-event="{&quot;category&quot;:&quot;Sign up&quot;,&quot;action&quot;:&quot;click to sign up for account&quot;,&quot;label&quot;:&quot;ref_page:/psiphon-labs/psiphon-tunnel-core-binaries/raw/master/android/armeabi-v7a/libjni.so;ref_cta:Sign up;ref_loc:header logged out&quot;}"
               >
                 Sign up
               </a>
 
                 <div class="AppHeader-appearanceSettings">
     <react-partial-anchor>
-      <button data-target="react-partial-anchor.anchor" id="icon-button-169bbb39-998c-4a97-b798-3c1ec673918a" aria-labelledby="tooltip-80cb1d72-5a88-4288-9336-5fa6eafaa760" type="button" disabled="disabled" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border cursor-wait">  <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-sliders Button-visual">
+      <button data-target="react-partial-anchor.anchor" id="icon-button-40893db8-269a-4c83-b357-d52583d98612" aria-labelledby="tooltip-7f8fab83-d66a-4dd6-8d58-a4d7ae447895" type="button" disabled="disabled" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border cursor-wait">  <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-sliders Button-visual">
     <path d="M15 2.75a.75.75 0 0 1-.75.75h-4a.75.75 0 0 1 0-1.5h4a.75.75 0 0 1 .75.75Zm-8.5.75v1.25a.75.75 0 0 0 1.5 0v-4a.75.75 0 0 0-1.5 0V2H1.75a.75.75 0 0 0 0 1.5H6.5Zm1.25 5.25a.75.75 0 0 0 0-1.5h-6a.75.75 0 0 0 0 1.5h6ZM15 8a.75.75 0 0 1-.75.75H11.5V10a.75.75 0 1 1-1.5 0V6a.75.75 0 0 1 1.5 0v1.25h2.75A.75.75 0 0 1 15 8Zm-9 5.25v-2a.75.75 0 0 0-1.5 0v1.25H1.75a.75.75 0 0 0 0 1.5H4.5v1.25a.75.75 0 0 0 1.5 0v-2Zm9 0a.75.75 0 0 1-.75.75h-6a.75.75 0 0 1 0-1.5h6a.75.75 0 0 1 .75.75Z"></path>
 </svg>
-</button><tool-tip id="tooltip-80cb1d72-5a88-4288-9336-5fa6eafaa760" for="icon-button-169bbb39-998c-4a97-b798-3c1ec673918a" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Appearance settings</tool-tip>
+</button><tool-tip id="tooltip-7f8fab83-d66a-4dd6-8d58-a4d7ae447895" for="icon-button-40893db8-269a-4c83-b357-d52583d98612" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Appearance settings</tool-tip>
 
       <template data-target="react-partial-anchor.template">
         <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.257816c5781f334a.module.css" />
@@ -908,10 +908,10 @@
         <span class="js-stale-session-flash-signed-out" hidden>You signed out in another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
         <span class="js-stale-session-flash-switched" hidden>You switched accounts on another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
 
-    <button id="icon-button-e29ee10f-af2b-4509-8fc7-e3c0e886a82c" aria-labelledby="tooltip-fab74253-c2be-47a8-8ca3-ae1b4ccb4b63" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium flash-close js-flash-close">  <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x Button-visual">
+    <button id="icon-button-0aab3490-40d5-4b12-bce9-f2da3b40e5fc" aria-labelledby="tooltip-67a3224d-3282-45ef-9a24-f83a85fca889" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium flash-close js-flash-close">  <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x Button-visual">
     <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
 </svg>
-</button><tool-tip id="tooltip-fab74253-c2be-47a8-8ca3-ae1b4ccb4b63" for="icon-button-e29ee10f-af2b-4509-8fc7-e3c0e886a82c" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Dismiss alert</tool-tip>
+</button><tool-tip id="tooltip-67a3224d-3282-45ef-9a24-f83a85fca889" for="icon-button-0aab3490-40d5-4b12-bce9-f2da3b40e5fc" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Dismiss alert</tool-tip>
 
 
   

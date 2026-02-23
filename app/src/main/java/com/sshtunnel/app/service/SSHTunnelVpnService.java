@@ -20,7 +20,7 @@ import com.sshtunnel.app.ui.MainActivity;
 import java.io.IOException;
 
 /**
- * VPN Service for SSH Tunnel - Versão baseada na Psiphon VPN
+ * VPN Service for SSH Tunnel - Versão usando bibliotecas oficiais do Psiphon
  */
 public class SSHTunnelVpnService extends VpnService {
     
@@ -35,7 +35,6 @@ public class SSHTunnelVpnService extends VpnService {
     private Thread vpnThread;
     private boolean isRunning = false;
     private int socksPort = 1080;
-    private String socksServerAddress;
     
     @Override
     public void onCreate() {
@@ -52,7 +51,6 @@ public class SSHTunnelVpnService extends VpnService {
         
         if (ACTION_CONNECT.equals(action)) {
             socksPort = intent.getIntExtra("socks_port", 1080);
-            socksServerAddress = "127.0.0.1:" + socksPort;
             connectVPN();
         } else if (ACTION_DISCONNECT.equals(action)) {
             disconnectVPN();
@@ -81,7 +79,7 @@ public class SSHTunnelVpnService extends VpnService {
             builder.addDnsServer("8.8.4.4");
             builder.setSession("SSH Tunnel VPN");
             
-            // Permite que o próprio app não seja roteado pela VPN
+            // Adicionar apps que não devem ser roteados pela VPN
             builder.addDisallowedApplication(getPackageName());
             
             vpnInterface = builder.establish();
@@ -105,22 +103,19 @@ public class SSHTunnelVpnService extends VpnService {
     private void startTun2Socks() {
         vpnThread = new Thread(() -> {
             int fd = vpnInterface.getFd();
+            String socksServer = "127.0.0.1:" + socksPort;
             
-            // Configurar para non-blocking (requerido pelo tun2socks)
-            setNonblocking(fd);
-            
-            LogManager.getInstance().i(TAG, "Iniciando tun2socks com fd=" + fd + ", socks=" + socksServerAddress);
+            LogManager.getInstance().i(TAG, "Iniciando tun2socks com fd=" + fd + ", socks=" + socksServer);
             
             // Chamar o método runTun2Socks da biblioteca nativa
-            // Formato esperado: runTun2Socks(fd, MTU, IP, MASK, SOCKS, UDPGW, TRANSPARENT_DNS)
             int result = Tun2Socks.runTun2Socks(
-                    fd,                    // file descriptor
-                    1500,                  // MTU
-                    "10.0.0.2",            // IP address
-                    "255.255.255.0",       // netmask
-                    socksServerAddress,    // socks server
-                    "",                    // udpgw server (vazio = desabilitado)
-                    0                      // transparent DNS (0 = desabilitado)
+                    fd,                     // file descriptor
+                    1500,                   // MTU
+                    "10.0.0.2",             // IP address
+                    "255.255.255.0",        // netmask
+                    socksServer,             // socks server
+                    "",                     // udpgw server (vazio = desabilitado)
+                    0                       // transparent DNS (0 = desabilitado)
             );
             
             if (result != 0) {
@@ -133,15 +128,6 @@ public class SSHTunnelVpnService extends VpnService {
             }
         });
         vpnThread.start();
-    }
-    
-    private void setNonblocking(int fd) {
-        try {
-            // Implementação simples para setar non-blocking via Java
-            // Em produção, usaria ioctl ou fcntl via JNI
-        } catch (Exception e) {
-            Log.e(TAG, "Erro ao setar non-blocking", e);
-        }
     }
     
     private void disconnectVPN() {
