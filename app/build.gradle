@@ -33,9 +33,21 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     
+    // CONFIGURAÇÃO CRÍTICA PARA AS BIBLIOTECAS NATIVAS
+    sourceSets {
+        main {
+            // Aponta para a pasta que contém as pastas 'armeabi-v7a', etc.
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+    
     packagingOptions {
-        pickFirst 'lib/arm64-v8a/libtun2socks.so'
+        jniLibs {
+            // Força o uso do método de empacotamento legado (essencial para compatibilidade)
+            useLegacyPackaging = true
+        }
         pickFirst 'lib/armeabi-v7a/libtun2socks.so'
+        pickFirst 'lib/arm64-v8a/libtun2socks.so'
         pickFirst 'lib/x86/libtun2socks.so'
         pickFirst 'lib/x86_64/libtun2socks.so'
     }
