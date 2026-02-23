@@ -174,19 +174,20 @@ public class SSHTunnelVpnService extends VpnService {
      * This is a simplified version - production would use native badvpn-tun2socks
      */
     private void runTun2SocksJava(int vpnFd) {
-        LogManager.getInstance().i(TAG, "tun2socks Java iniciado");
-        
-        // In a real implementation, this would:
-        // 1. Read packets from VPN interface (vpnFd)
-        // 2. Parse IP packets
-        // 3. Route TCP/UDP through SOCKS5 proxy at 127.0.0.1:socksPort
-        // 4. Write responses back to VPN interface
-        
-        // For now, we just keep the service alive
-        while (isRunning) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
+        try {
+            com.londonx.tun2socks.Tun2Socks.start(
+                vpnFd,
+                1500,
+                "10.0.0.2",
+                "255.255.255.0",
+                "127.0.0.1:" + socksPort,
+                "127.0.0.1:7300",
+                1
+            );
+        } catch (Exception e) {
+            Log.e(TAG, "Erro ao iniciar tun2socks", e);
+        }
+    }
                 Thread.currentThread().interrupt();
                 break;
             }
