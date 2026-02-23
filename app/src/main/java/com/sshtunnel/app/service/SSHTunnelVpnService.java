@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
@@ -14,20 +15,12 @@ import androidx.core.app.NotificationCompat;
 
 import com.sshtunnel.app.R;
 import com.sshtunnel.app.helper.LogManager;
-import com.sshtunnel.app.model.ConnectionStatus;
 import com.sshtunnel.app.ui.MainActivity;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.DatagramChannel;
-import java.nio.channels.Selector;
 
 /**
- * VPN Service for SSH Tunnel - Versão simplificada mas funcional
+ * VPN Service for SSH Tunnel - Versão com bibliotecas nativas
  */
 public class SSHTunnelVpnService extends VpnService {
     
@@ -42,6 +35,21 @@ public class SSHTunnelVpnService extends VpnService {
     private Thread vpnThread;
     private boolean isRunning = false;
     private int socksPort = 1080;
+    
+    // Carregar bibliotecas nativas
+    static {
+        try {
+            System.loadLibrary("tun2socks");
+            System.loadLibrary("tunnelcore");
+            Log.d(TAG, "Bibliotecas nativas carregadas com sucesso");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e(TAG, "Erro ao carregar bibliotecas nativas", e);
+        }
+    }
+    
+    // Métodos nativos
+    private native int tun2socks_main(int vpnFd, String socksServer, String dnsServer);
+    private native void tun2socks_stop();
     
     @Override
     public void onCreate() {
@@ -95,8 +103,8 @@ public class SSHTunnelVpnService extends VpnService {
             isRunning = true;
             startForeground(NOTIFICATION_ID, buildNotification());
             
-            // Iniciar thread de redirecionamento simples
-            startSimpleForwarding();
+            // Iniciar tun2socks nativo
+            startNativeTun2Socks();
             
         } catch (Exception e) {
             LogManager.getInstance().e(TAG, "Erro: " + e.getMessage());
@@ -104,23 +112,19 @@ public class SSHTunnelVpnService extends VpnService {
         }
     }
     
-    private void startSimpleForwarding() {
+    private void startNativeTun2Socks() {
         vpnThread = new Thread(() -> {
-            try {
-                FileInputStream in = new FileInputStream(vpnInterface.getFileDescriptor());
-                FileOutputStream out = new FileOutputStream(vpnInterface.getFileDescriptor());
-                byte[] packet = new byte[32767];
-                
-                while (isRunning) {
-                    int length = in.read(packet);
-                    if (length > 0) {
-                        // Aqui você implementaria o roteamento real
-                        // Por enquanto, apenas log
-                        Log.d(TAG, "Pacote recebido: " + length + " bytes");
-                    }
-                }
-            } catch (IOException e) {
-                Log.e(TAG, "Erro no forwarding", e);
+            int fd = vpnInterface.getFd();
+            String socksServer = "127.0.0.1:" + socksPort;
+            String dnsServer = "8.8.8.8";
+            
+            LogManager.getInstance().i(TAG, "Iniciando tun2socks nativo com fd=" + fd + ", socks=" + socksServer);
+            
+            // Chamar método nativo (bloqueante)
+            int result = tun2socks_main(fd, socksServer, dnsServer);
+            
+            if (result != 0) {
+                LogManager.getInstance().e(TAG, "tun2socks nativo encerrou com código: " + result);
             }
         });
         vpnThread.start();
@@ -129,8 +133,16 @@ public class SSHTunnelVpnService extends VpnService {
     private void disconnectVPN() {
         isRunning = false;
         
+        // Parar tun2socks nativo
+        tun2socks_stop();
+        
         if (vpnThread != null) {
-            vpnThread.interrupt();
+            try {
+                vpnThread.interrupt();
+                vpnThread.join(1000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Erro ao parar thread", e);
+            }
             vpnThread = null;
         }
         
