@@ -1,5 +1,5 @@
-import android.util.Log;
 package com.sshtunnel.app.ui;
+import android.util.Log;
 
 import android.app.Activity;
 import android.content.ComponentName;
