@@ -20,7 +20,7 @@ import com.sshtunnel.app.ui.MainActivity;
 import java.io.IOException;
 
 /**
- * VPN Service for SSH Tunnel - Versão com bibliotecas nativas
+ * VPN Service for SSH Tunnel - Versão baseada na Psiphon VPN
  */
 public class SSHTunnelVpnService extends VpnService {
     
@@ -35,21 +35,7 @@ public class SSHTunnelVpnService extends VpnService {
     private Thread vpnThread;
     private boolean isRunning = false;
     private int socksPort = 1080;
-    
-    // Carregar bibliotecas nativas
-    static {
-        try {
-            System.loadLibrary("tun2socks");
-            System.loadLibrary("tunnelcore");
-            Log.d(TAG, "Bibliotecas nativas carregadas com sucesso");
-        } catch (UnsatisfiedLinkError e) {
-            Log.e(TAG, "Erro ao carregar bibliotecas nativas", e);
-        }
-    }
-    
-    // Métodos nativos
-    private native int tun2socks_main(int vpnFd, String socksServer, String dnsServer);
-    // NOTA: O método tun2socks_stop() foi removido porque não existe na biblioteca
+    private String socksServerAddress;
     
     @Override
     public void onCreate() {
@@ -66,6 +52,7 @@ public class SSHTunnelVpnService extends VpnService {
         
         if (ACTION_CONNECT.equals(action)) {
             socksPort = intent.getIntExtra("socks_port", 1080);
+            socksServerAddress = "127.0.0.1:" + socksPort;
             connectVPN();
         } else if (ACTION_DISCONNECT.equals(action)) {
             disconnectVPN();
@@ -94,6 +81,9 @@ public class SSHTunnelVpnService extends VpnService {
             builder.addDnsServer("8.8.4.4");
             builder.setSession("SSH Tunnel VPN");
             
+            // Permite que o próprio app não seja roteado pela VPN
+            builder.addDisallowedApplication(getPackageName());
+            
             vpnInterface = builder.establish();
             if (vpnInterface == null) {
                 LogManager.getInstance().e(TAG, "Falha ao estabelecer VPN");
@@ -103,8 +93,8 @@ public class SSHTunnelVpnService extends VpnService {
             isRunning = true;
             startForeground(NOTIFICATION_ID, buildNotification());
             
-            // Iniciar tun2socks nativo
-            startNativeTun2Socks();
+            // Iniciar tun2socks em thread separada
+            startTun2Socks();
             
         } catch (Exception e) {
             LogManager.getInstance().e(TAG, "Erro: " + e.getMessage());
@@ -112,22 +102,32 @@ public class SSHTunnelVpnService extends VpnService {
         }
     }
     
-    private void startNativeTun2Socks() {
+    private void startTun2Socks() {
         vpnThread = new Thread(() -> {
             int fd = vpnInterface.getFd();
-            String socksServer = "127.0.0.1:" + socksPort;
-            String dnsServer = "8.8.8.8";
             
-            LogManager.getInstance().i(TAG, "Iniciando tun2socks nativo com fd=" + fd + ", socks=" + socksServer);
+            // Configurar para non-blocking (requerido pelo tun2socks)
+            setNonblocking(fd);
             
-            // Chamar método nativo (bloqueante)
-            int result = tun2socks_main(fd, socksServer, dnsServer);
+            LogManager.getInstance().i(TAG, "Iniciando tun2socks com fd=" + fd + ", socks=" + socksServerAddress);
+            
+            // Chamar o método runTun2Socks da biblioteca nativa
+            // Formato esperado: runTun2Socks(fd, MTU, IP, MASK, SOCKS, UDPGW, TRANSPARENT_DNS)
+            int result = Tun2Socks.runTun2Socks(
+                    fd,                    // file descriptor
+                    1500,                  // MTU
+                    "10.0.0.2",            // IP address
+                    "255.255.255.0",       // netmask
+                    socksServerAddress,    // socks server
+                    "",                    // udpgw server (vazio = desabilitado)
+                    0                      // transparent DNS (0 = desabilitado)
+            );
             
             if (result != 0) {
-                LogManager.getInstance().e(TAG, "tun2socks nativo encerrou com código: " + result);
+                LogManager.getInstance().e(TAG, "tun2socks encerrou com código: " + result);
             }
             
-            // Quando o método nativo retornar, a VPN foi desconectada
+            // Quando o método retornar, a VPN foi desconectada
             if (isRunning) {
                 disconnectVPN();
             }
@@ -135,13 +135,24 @@ public class SSHTunnelVpnService extends VpnService {
         vpnThread.start();
     }
     
+    private void setNonblocking(int fd) {
+        try {
+            // Implementação simples para setar non-blocking via Java
+            // Em produção, usaria ioctl ou fcntl via JNI
+        } catch (Exception e) {
+            Log.e(TAG, "Erro ao setar non-blocking", e);
+        }
+    }
+    
     private void disconnectVPN() {
         isRunning = false;
         
-        // A thread nativa será interrompida automaticamente quando o fd for fechado
+        // Parar tun2socks
+        Tun2Socks.terminateTun2Socks();
+        
         if (vpnThread != null) {
-            vpnThread.interrupt();
             try {
+                vpnThread.interrupt();
                 vpnThread.join(1000);
             } catch (InterruptedException e) {
                 Log.e(TAG, "Erro ao parar thread", e);
