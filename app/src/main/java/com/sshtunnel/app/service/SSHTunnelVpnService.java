@@ -108,7 +108,7 @@ public class SSHTunnelVpnService extends VpnService {
             LogManager.getInstance().i(TAG, "Iniciando tun2socks com fd=" + fd + ", socks=" + socksServer);
             
             // Chamar o método runTun2Socks da biblioteca nativa
-            int result = Tun2Socks.runTun2Socks(
+            int result = Tun2Socks.runTun2Socks(vpnInterface,
                     fd,                     // file descriptor
                     1500,                   // MTU
                     "10.0.0.2",             // IP address
