@@ -49,7 +49,7 @@ public class SSHTunnelVpnService extends VpnService {
     
     // Métodos nativos
     private native int tun2socks_main(int vpnFd, String socksServer, String dnsServer);
-    private native void 
+    // NOTA: O método tun2socks_stop() foi removido porque não existe na biblioteca
     
     @Override
     public void onCreate() {
@@ -126,6 +126,11 @@ public class SSHTunnelVpnService extends VpnService {
             if (result != 0) {
                 LogManager.getInstance().e(TAG, "tun2socks nativo encerrou com código: " + result);
             }
+            
+            // Quando o método nativo retornar, a VPN foi desconectada
+            if (isRunning) {
+                disconnectVPN();
+            }
         });
         vpnThread.start();
     }
@@ -133,12 +138,10 @@ public class SSHTunnelVpnService extends VpnService {
     private void disconnectVPN() {
         isRunning = false;
         
-        // Parar tun2socks nativo
-        
-        
+        // A thread nativa será interrompida automaticamente quando o fd for fechado
         if (vpnThread != null) {
+            vpnThread.interrupt();
             try {
-                vpnThread.interrupt();
                 vpnThread.join(1000);
             } catch (InterruptedException e) {
                 Log.e(TAG, "Erro ao parar thread", e);
