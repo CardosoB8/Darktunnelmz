@@ -49,7 +49,7 @@ public class SSHTunnelVpnService extends VpnService {
     
     // Métodos nativos
     private native int tun2socks_main(int vpnFd, String socksServer, String dnsServer);
-    private native void tun2socks_stop();
+    private native void 
     
     @Override
     public void onCreate() {
@@ -134,7 +134,7 @@ public class SSHTunnelVpnService extends VpnService {
         isRunning = false;
         
         // Parar tun2socks nativo
-        tun2socks_stop();
+        
         
         if (vpnThread != null) {
             try {

@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.net.VpnService;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -35,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_VPN = 1;
+    private static final String PREFS_NAME = "SSHTunnelPrefs";
 
     // Modos de conexão
     private static final int MODE_NORMAL = 0;
@@ -58,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
     
     // Campos TLS
     private EditText edittext_tls_cert;
+    private EditText edittext2sni;  // SNI movido para TLS
     
     // Campos Proxy
     private EditText edittext_proxy;
@@ -65,13 +68,14 @@ public class MainActivity extends AppCompatActivity {
     
     // Campos comuns
     private EditText edittext1payload;
-    private EditText edittext2sni;
     private TextView textview8logs;
     private ScrollView vscroll1;
     private Button btnConnect;
 
     private SSHConnectionService sshService;
     private boolean serviceBound = false;
+    private boolean isConnecting = false;
+    private boolean isConnected = false;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -111,6 +115,9 @@ public class MainActivity extends AppCompatActivity {
         setupSpinners();
         setupListeners();
         bindService();
+        
+        // Carregar dados salvos
+        loadSavedData();
     }
 
     private void bindViews() {
@@ -127,12 +134,12 @@ public class MainActivity extends AppCompatActivity {
         edittext_password = findViewById(R.id.edittext_password);
         
         edittext_tls_cert = findViewById(R.id.edittext_tls_cert);
+        edittext2sni = findViewById(R.id.edittext2sni);
         
         edittext_proxy = findViewById(R.id.edittext_proxy);
         spinner_proxy_type = findViewById(R.id.spinner_proxy_type);
         
         edittext1payload = findViewById(R.id.edittext1payload);
-        edittext2sni = findViewById(R.id.edittext2sni);
         textview8logs = findViewById(R.id.textview8logs);
         vscroll1 = findViewById(R.id.vscroll1);
         btnConnect = findViewById(R.id.btnConnect);
@@ -168,7 +175,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        btnConnect.setOnClickListener(v -> connect());
+        btnConnect.setOnClickListener(v -> {
+            if (isConnected) {
+                disconnect();
+            } else if (isConnecting) {
+                Toast.makeText(this, "Conectando...", Toast.LENGTH_SHORT).show();
+            } else {
+                connect();
+            }
+        });
 
         ivSettings.setOnClickListener(v -> {
             Toast.makeText(this, "Configurações", Toast.LENGTH_SHORT).show();
@@ -179,11 +194,47 @@ public class MainActivity extends AppCompatActivity {
             edittext_username.setText("");
             edittext_password.setText("");
             edittext_tls_cert.setText("");
+            edittext2sni.setText("");
             edittext_proxy.setText("");
             edittext1payload.setText("");
-            edittext2sni.setText("");
             Toast.makeText(this, "Campos resetados", Toast.LENGTH_SHORT).show();
         });
+    }
+
+    private void loadSavedData() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        
+        edittext_host.setText(prefs.getString("host", ""));
+        edittext_username.setText(prefs.getString("username", ""));
+        edittext_password.setText(prefs.getString("password", ""));
+        edittext_tls_cert.setText(prefs.getString("tls_cert", ""));
+        edittext2sni.setText(prefs.getString("sni", ""));
+        edittext_proxy.setText(prefs.getString("proxy", ""));
+        edittext1payload.setText(prefs.getString("payload", ""));
+        
+        int mode = prefs.getInt("mode", 0);
+        spinner1_metodo_choose.setSelection(mode);
+        
+        int proxyType = prefs.getInt("proxy_type", 0);
+        spinner_proxy_type.setSelection(proxyType);
+    }
+
+    private void saveData() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        
+        editor.putString("host", edittext_host.getText().toString());
+        editor.putString("username", edittext_username.getText().toString());
+        editor.putString("password", edittext_password.getText().toString());
+        editor.putString("tls_cert", edittext_tls_cert.getText().toString());
+        editor.putString("sni", edittext2sni.getText().toString());
+        editor.putString("proxy", edittext_proxy.getText().toString());
+        editor.putString("payload", edittext1payload.getText().toString());
+        
+        editor.putInt("mode", spinner1_metodo_choose.getSelectedItemPosition());
+        editor.putInt("proxy_type", spinner_proxy_type.getSelectedItemPosition());
+        
+        editor.apply();
     }
 
     private void bindService() {
@@ -209,17 +260,32 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         appendLog("ERRO: " + error);
                         Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show();
+                        isConnecting = false;
+                        isConnected = false;
+                        updateButtonState();
                     });
                 }
 
                 @Override
                 public void onConnected() {
-                    runOnUiThread(() -> prepareAndStartVpn());
+                    runOnUiThread(() -> {
+                        appendLog("✅ SSH Conectado!");
+                        isConnecting = false;
+                        isConnected = true;
+                        updateButtonState();
+                        prepareAndStartVpn();
+                    });
                 }
 
                 @Override
                 public void onDisconnected() {
-                    runOnUiThread(() -> stopVpnService());
+                    runOnUiThread(() -> {
+                        appendLog("Desconectado");
+                        isConnecting = false;
+                        isConnected = false;
+                        updateButtonState();
+                        stopVpnService();
+                    });
                 }
             });
         }
@@ -228,8 +294,10 @@ public class MainActivity extends AppCompatActivity {
     private void connect() {
         int mode = spinner1_metodo_choose.getSelectedItemPosition();
         
+        // Salvar dados antes de conectar
+        saveData();
+        
         if (mode == MODE_NORMAL || mode == MODE_SSL_TLS) {
-            // Validar campos SSH
             String hostPort = edittext_host.getText().toString().trim();
             String username = edittext_username.getText().toString().trim();
             String password = edittext_password.getText().toString().trim();
@@ -247,7 +315,6 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // Parse host:port
             String[] parts = hostPort.split(":");
             String host = parts[0];
             int port = parts.length > 1 ? Integer.parseInt(parts[1]) : 22;
@@ -258,14 +325,18 @@ public class MainActivity extends AppCompatActivity {
             config.setUsername(username);
             config.setPassword(password);
             config.setPayload(edittext1payload.getText().toString());
-            config.setSni(edittext2sni.getText().toString());
             
             if (mode == MODE_SSL_TLS) {
                 config.setConnectionMode(ConnectionConfig.ConnectionMode.SSL_TLS);
                 config.setSni(edittext2sni.getText().toString());
             }
 
-            // Iniciar serviço SSH
+            isConnecting = true;
+            isConnected = false;
+            updateButtonState();
+            
+            appendLog("🔄 Conectando a " + host + ":" + port + "...");
+
             Intent serviceIntent = new Intent(this, SSHConnectionService.class);
             startService(serviceIntent);
 
@@ -274,7 +345,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         else if (mode == MODE_PROXY) {
-            // Modo proxy direto
             String proxy = edittext_proxy.getText().toString().trim();
             if (proxy.isEmpty()) {
                 Toast.makeText(this, "Preencha proxy", Toast.LENGTH_SHORT).show();
@@ -284,9 +354,30 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void disconnect() {
+        appendLog("🔄 Desconectando...");
+        if (serviceBound && sshService != null) {
+            sshService.disconnect();
+        }
+    }
+
+    private void updateButtonState() {
+        if (isConnected) {
+            btnConnect.setText("DISCONNECT");
+            btnConnect.setBackgroundTintList(getColorStateList(android.R.color.holo_red_dark));
+        } else if (isConnecting) {
+            btnConnect.setText("CONNECTING...");
+            btnConnect.setBackgroundTintList(getColorStateList(android.R.color.holo_orange_dark));
+        } else {
+            btnConnect.setText("CONNECT");
+            btnConnect.setBackgroundTintList(getColorStateList(R.color.colorPrimary));
+        }
+    }
+
     private void prepareAndStartVpn() {
         Intent intent = VpnService.prepare(this);
         if (intent != null) {
+            appendLog("🔐 Solicitando permissão VPN...");
             vpnLauncher.launch(intent);
         } else {
             startVpnService();
@@ -299,6 +390,7 @@ public class MainActivity extends AppCompatActivity {
         intent.setAction(SSHTunnelVpnService.ACTION_CONNECT);
         intent.putExtra("socks_port", socksPort);
         startService(intent);
+        appendLog("🌐 VPN iniciada na porta " + socksPort);
     }
 
     private void stopVpnService() {
@@ -308,7 +400,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateStatusUI(ConnectionStatus status) {
-        // TODO: Atualizar UI com status
+        // Não usado por enquanto
     }
 
     private void appendLog(String message) {
