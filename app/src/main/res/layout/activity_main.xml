@@ -25,66 +25,191 @@
     </LinearLayout>
 
     <!-- Main Content -->
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp"
-        android:orientation="vertical">
+        android:layout_height="match_parent">
 
-        <!-- Top Controls Row -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="8dp"
-                android:text="SSH"
-                android:textSize="12sp"
-                android:textColor="#008DCD" />
-
-            <Spinner
-                android:id="@+id/spinner1_metodo_choose"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:padding="8dp"
-                android:spinnerMode="dropdown" />
-
-            <Spinner
-                android:id="@+id/spinner2_import_or_export_config"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="8dp"
-                android:spinnerMode="dropdown" />
-
-            <ImageView
-                android:id="@+id/ivSettings"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_settings"
-                android:padding="8dp"
-                android:background="@drawable/circle_background_blue" />
-
-            <ImageView
-                android:id="@+id/ivReset"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_reset"
-                android:padding="8dp"
-                android:background="@drawable/circle_background_blue" />
-        </LinearLayout>
-
-        <!-- Input Fields -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="8dp"
             android:orientation="vertical">
+
+            <!-- Top Controls Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:text="SSH"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD" />
+
+                <Spinner
+                    android:id="@+id/spinner1_metodo_choose"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:padding="8dp"
+                    android:spinnerMode="dropdown" />
+
+                <ImageView
+                    android:id="@+id/ivSettings"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_settings"
+                    android:padding="8dp"
+                    android:background="@drawable/circle_background_blue"
+                    android:layout_marginEnd="4dp" />
+
+                <ImageView
+                    android:id="@+id/ivReset"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_reset"
+                    android:padding="8dp"
+                    android:background="@drawable/circle_background_blue" />
+            </LinearLayout>
+
+            <!-- SSH Connection Fields -->
+            <LinearLayout
+                android:id="@+id/layout_ssh_fields"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Host:Porta"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/edittext_host"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:hint="ex: in6.vpnjantit.com:22"
+                    android:background="@drawable/edittext_background"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Usuário"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/edittext_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:hint="usuário"
+                    android:background="@drawable/edittext_background"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Senha"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/edittext_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:hint="senha"
+                    android:inputType="textPassword"
+                    android:background="@drawable/edittext_background"
+                    android:layout_marginBottom="8dp" />
+            </LinearLayout>
+
+            <!-- SSL/TLS Fields (aparece quando selecionado) -->
+            <LinearLayout
+                android:id="@+id/layout_tls_fields"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Certificado TLS (opcional)"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/edittext_tls_cert"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:hint="caminho do certificado"
+                    android:background="@drawable/edittext_background" />
+            </LinearLayout>
+
+            <!-- Proxy Fields (aparece quando selecionado) -->
+            <LinearLayout
+                android:id="@+id/layout_proxy_fields"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Proxy"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/edittext_proxy"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:hint="10.100.100.100:80"
+                    android:background="@drawable/edittext_background"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tipo de Proxy"
+                    android:textSize="12sp"
+                    android:textColor="#008DCD"
+                    android:layout_marginBottom="4dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_proxy_type"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/spinner_background" />
+            </LinearLayout>
 
             <!-- Payload -->
             <TextView
@@ -94,7 +219,8 @@
                 android:gravity="center_horizontal"
                 android:text="Payload"
                 android:textSize="12sp"
-                android:textColor="#008DCD" />
+                android:textColor="#008DCD"
+                android:layout_marginTop="8dp" />
 
             <EditText
                 android:id="@+id/edittext1payload"
@@ -126,70 +252,44 @@
                 android:background="@drawable/edittext_background"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Proxy -->
+            <!-- Logs -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="8dp"
-                android:gravity="center_horizontal"
-                android:text="Proxy"
+                android:text="Logs"
                 android:textSize="12sp"
-                android:textColor="#008DCD" />
+                android:textColor="#008DCD"
+                android:layout_marginTop="8dp" />
 
-            <EditText
-                android:id="@+id/edittext3proxy"
+            <ScrollView
+                android:id="@+id/vscroll1"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="200dp"
                 android:padding="8dp"
-                android:textSize="12sp"
-                android:hint="10.100.100.100:80"
-                android:background="@drawable/edittext_background" />
-        </LinearLayout>
-
-        <!-- Logs -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="Logs"
-            android:textSize="12sp"
-            android:textColor="#008DCD" />
-
-        <ScrollView
-            android:id="@+id/vscroll1"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:padding="8dp"
-            android:background="#F5F5F5">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:background="#F5F5F5">
 
                 <TextView
                     android:id="@+id/textview8logs"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="8dp"
                     android:text=""
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:fontFamily="monospace" />
-            </LinearLayout>
-        </ScrollView>
+            </ScrollView>
 
-        <!-- Connect Button -->
-        <Button
-            android:id="@+id/btnConnect"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="8dp"
-            android:text="CONNECT"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#008DCD"
-            android:textStyle="bold" />
+            <!-- Connect Button -->
+            <Button
+                android:id="@+id/btnConnect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:text="CONNECT"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#008DCD"
+                android:textStyle="bold" />
 
-    </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>
