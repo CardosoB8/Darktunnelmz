@@ -1,3 +1,4 @@
+import android.util.Log;
 package com.sshtunnel.app.ui;
 
 import android.app.Activity;
@@ -372,6 +373,21 @@ public class MainActivity extends AppCompatActivity {
             btnConnect.setText("CONNECT");
             btnConnect.setBackgroundTintList(getColorStateList(R.color.colorPrimary));
         }
+    }
+
+    private int findAvailablePort() {
+        for (int port = 1080; port < 1180; port++) {
+            try {
+                java.net.ServerSocket socket = new java.net.ServerSocket(port);
+                socket.close();
+                Log.d(TAG, "Porta disponível encontrada: " + port);
+                return port;
+            } catch (Exception e) {
+                // Porta ocupada, tenta próxima
+            }
+        }
+        Log.w(TAG, "Nenhuma porta disponível encontrada, usando 1080");
+        return 1080; // fallback
     }
 
     private void prepareAndStartVpn() {
