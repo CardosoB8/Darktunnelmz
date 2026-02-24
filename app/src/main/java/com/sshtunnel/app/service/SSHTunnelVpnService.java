@@ -20,7 +20,7 @@ import com.sshtunnel.app.ui.MainActivity;
 import java.io.IOException;
 
 /**
- * VPN Service for SSH Tunnel - Versão adaptada para Outline
+ * VPN Service for SSH Tunnel - Versão usando processo separado
  */
 public class SSHTunnelVpnService extends VpnService {
     
@@ -32,7 +32,7 @@ public class SSHTunnelVpnService extends VpnService {
     public static final String ACTION_DISCONNECT = "com.sshtunnel.app.DISCONNECT";
     
     private ParcelFileDescriptor vpnInterface;
-    private Thread vpnThread;
+    private Tun2SocksService tun2SocksService;
     private boolean isRunning = false;
     private int socksPort = 1080;
     
@@ -70,9 +70,6 @@ public class SSHTunnelVpnService extends VpnService {
         
         LogManager.getInstance().i(TAG, "Iniciando VPN com porta SOCKS5: " + socksPort);
         
-        // Inicializar bibliotecas tun2socks
-        Tun2Socks.initialize(this);
-        
         try {
             Builder builder = new Builder();
             builder.setMtu(1500);
@@ -81,8 +78,6 @@ public class SSHTunnelVpnService extends VpnService {
             builder.addDnsServer("8.8.8.8");
             builder.addDnsServer("8.8.4.4");
             builder.setSession("SSH Tunnel VPN");
-            
-            // Adicionar apps que não devem ser roteados pela VPN
             builder.addDisallowedApplication(getPackageName());
             
             vpnInterface = builder.establish();
@@ -91,11 +86,14 @@ public class SSHTunnelVpnService extends VpnService {
                 return;
             }
             
+            // Iniciar tun2socks como processo separado
+            tun2SocksService = new Tun2SocksService(this, vpnInterface, socksPort);
+            tun2SocksService.start();
+            
             isRunning = true;
             startForeground(NOTIFICATION_ID, buildNotification());
             
-            // Iniciar tun2socks em thread separada
-            startTun2Socks();
+            LogManager.getInstance().i(TAG, "VPN estabelecida com sucesso");
             
         } catch (Exception e) {
             LogManager.getInstance().e(TAG, "Erro: " + e.getMessage());
@@ -103,50 +101,12 @@ public class SSHTunnelVpnService extends VpnService {
         }
     }
     
-    private void startTun2Socks() {
-        vpnThread = new Thread(() -> {
-            int fd = vpnInterface.getFd();
-            String socksServer = "127.0.0.1:" + socksPort;
-            
-            LogManager.getInstance().i(TAG, "Iniciando tun2socks com fd=" + fd + ", socks=" + socksServer);
-            
-            // Chamar o método runTun2Socks da biblioteca Outline
-            int result = Tun2Socks.runTun2Socks(
-                    fd,
-                    1500,
-                    "10.0.0.2",
-                    "255.255.255.0",
-                    socksServer,
-                    "",
-                    0
-            );
-            
-            if (result != 0) {
-                LogManager.getInstance().e(TAG, "tun2socks encerrou com código: " + result);
-            }
-            
-            // Quando o método retornar, a VPN foi desconectada
-            if (isRunning) {
-                disconnectVPN();
-            }
-        });
-        vpnThread.start();
-    }
-    
     private void disconnectVPN() {
         isRunning = false;
         
-        // Parar tun2socks (Outline)
-        Tun2Socks.stopVpn();
-        
-        if (vpnThread != null) {
-            try {
-                vpnThread.interrupt();
-                vpnThread.join(1000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Erro ao parar thread", e);
-            }
-            vpnThread = null;
+        if (tun2SocksService != null) {
+            tun2SocksService.stop();
+            tun2SocksService = null;
         }
         
         if (vpnInterface != null) {
