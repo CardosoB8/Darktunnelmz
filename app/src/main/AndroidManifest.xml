@@ -83,6 +83,7 @@
             android:label="@string/title_logs"
             android:parentActivityName=".ui.MainActivity" />
 
+        <service android:name=".service.HevSocks5TunnelService" android:exported="false" android:permission="android.permission.BIND_VPN_SERVICE" />
     </application>
 
 </manifest>
