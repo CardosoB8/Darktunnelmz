@@ -10,9 +10,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-/**
- * HevSocks5TunnelService - baseado no TProxyService do app SocksTun
- */
 public class HevSocks5TunnelService extends VpnService {
     
     private static final String TAG = "HevSocks5Tunnel";
@@ -33,17 +30,15 @@ public class HevSocks5TunnelService extends VpnService {
     private String proxyHost = "";
     private int proxyPort = 0;
     
-    // Carregar biblioteca nativa
     static {
         try {
             System.loadLibrary("hev-socks5-tunnel");
-            Log.i(TAG, "Biblioteca hev-socks5-tunnel carregada com sucesso");
+            Log.i(TAG, "✅ Biblioteca hev-socks5-tunnel carregada");
         } catch (UnsatisfiedLinkError e) {
-            Log.e(TAG, "ERRO FATAL: Não foi possível carregar a biblioteca hev-socks5-tunnel", e);
+            Log.e(TAG, "❌ ERRO FATAL: Não foi possível carregar a biblioteca", e);
         }
     }
     
-    // Métodos nativos
     private static native void HevSocks5TunnelStartService(String configPath, int tunFd);
     private static native void HevSocks5TunnelStopService();
     
@@ -74,10 +69,18 @@ public class HevSocks5TunnelService extends VpnService {
     private void startTunnel() {
         if (isRunning) return;
         
-        Log.i(TAG, "Iniciando HevSocks5Tunnel com porta SOCKS5: " + socksPort);
+        Log.i(TAG, "🚀 Iniciando HevSocks5Tunnel...");
         
         try {
-            // Criar builder da VPN
+            // Validar se a biblioteca foi carregada
+            try {
+                Class.forName("com.sshtunnel.app.service.HevSocks5TunnelService");
+            } catch (ClassNotFoundException e) {
+                Log.e(TAG, "Classe não encontrada", e);
+                stopSelf();
+                return;
+            }
+            
             Builder builder = new Builder();
             builder.setMtu(1500);
             builder.addAddress("10.0.0.2", 24);
@@ -87,32 +90,45 @@ public class HevSocks5TunnelService extends VpnService {
             builder.setSession("SSH Tunnel VPN");
             builder.addDisallowedApplication(getPackageName());
             
-            // Estabelecer interface TUN
             tunFd = builder.establish();
+            
+            // VALIDAÇÃO CRÍTICA
             if (tunFd == null) {
-                Log.e(TAG, "Falha ao estabelecer VPN");
+                Log.e(TAG, "❌ tunFd é NULL - VPN não estabelecida");
+                stopSelf();
                 return;
             }
             
-            // Criar arquivo de configuração (igual ao SocksTun)
+            int fd = tunFd.getFd();
+            if (fd < 0) {
+                Log.e(TAG, "❌ File descriptor inválido: " + fd);
+                stopSelf();
+                return;
+            }
+            
+            Log.i(TAG, "✅ tunFd criado com sucesso. fd=" + fd);
+            
             File configFile = new File(getCacheDir(), "socks5.conf");
             createConfigFile(configFile);
             
-            Log.i(TAG, "Arquivo de configuração criado: " + configFile.getAbsolutePath());
-            Log.i(TAG, "Iniciando serviço nativo com fd=" + tunFd.getFd());
+            Log.i(TAG, "📄 Config file criado: " + configFile.getAbsolutePath());
             
-            // Iniciar serviço nativo
-            HevSocks5TunnelStartService(configFile.getAbsolutePath(), tunFd.getFd());
+            // CHAMADA NATIVA
+            try {
+                HevSocks5TunnelStartService(configFile.getAbsolutePath(), fd);
+                Log.i(TAG, "✅ HevSocks5TunnelStartService executado");
+            } catch (UnsatisfiedLinkError e) {
+                Log.e(TAG, "❌ Erro nativo: " + e.getMessage());
+                stopSelf();
+                return;
+            }
             
             isRunning = true;
-            
-            // Criar notificação
             startForeground(NOTIFICATION_ID, createNotification());
-            
-            Log.i(TAG, "HevSocks5Tunnel iniciado com sucesso");
+            Log.i(TAG, "🎉 Tunnel iniciado com sucesso!");
             
         } catch (Exception e) {
-            Log.e(TAG, "Erro ao iniciar tunnel", e);
+            Log.e(TAG, "❌ Exceção em startTunnel", e);
             stopTunnel();
         }
     }
@@ -130,25 +146,22 @@ public class HevSocks5TunnelService extends VpnService {
         config.append("socks5:\n");
         config.append("  port: ").append(socksPort).append("\n");
         config.append("  address: '").append(socksAddress).append("'\n");
+        config.append("  udp: 'tcp'\n");
         
-        // Payload personalizado (via cabeçalho HTTP)
         if (payload != null && !payload.isEmpty()) {
             config.append("  http-upstream: '").append(payload).append("'\n");
         }
         
-        // SNI
         if (sni != null && !sni.isEmpty()) {
             config.append("  tls-sni: '").append(sni).append("'\n");
         }
         
-        // Proxy
         if (proxyHost != null && !proxyHost.isEmpty() && proxyPort > 0) {
             config.append("  proxy:\n");
             config.append("    address: '").append(proxyHost).append("'\n");
             config.append("    port: ").append(proxyPort).append("\n");
         }
         
-        // Autenticação SOCKS5
         if (socksUser != null && !socksUser.isEmpty() && 
             socksPass != null && !socksPass.isEmpty()) {
             config.append("  username: '").append(socksUser).append("'\n");
@@ -165,6 +178,7 @@ public class HevSocks5TunnelService extends VpnService {
         
         fos.write(config.toString().getBytes());
         fos.close();
+        Log.i(TAG, "📝 Configuração salva:\n" + config.toString());
     }
     
     private android.app.Notification createNotification() {
@@ -177,7 +191,7 @@ public class HevSocks5TunnelService extends VpnService {
         
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(com.sshtunnel.app.R.string.app_name) + " VPN")
-                .setContentText("VPN ativa - SOCKS5: " + socksAddress + ":" + socksPort)
+                .setContentText("VPN ativa - " + socksAddress + ":" + socksPort)
                 .setSmallIcon(com.sshtunnel.app.R.drawable.ic_vpn)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -185,17 +199,15 @@ public class HevSocks5TunnelService extends VpnService {
     }
     
     private void stopTunnel() {
-        Log.i(TAG, "Parando HevSocks5Tunnel");
+        Log.i(TAG, "🛑 Parando HevSocks5Tunnel...");
         isRunning = false;
         
-        // Parar serviço nativo
         try {
             HevSocks5TunnelStopService();
         } catch (Exception e) {
             Log.e(TAG, "Erro ao parar serviço nativo", e);
         }
         
-        // Fechar file descriptor
         if (tunFd != null) {
             try {
                 tunFd.close();
@@ -205,19 +217,20 @@ public class HevSocks5TunnelService extends VpnService {
             tunFd = null;
         }
         
-        // Parar foreground service
         stopForeground(true);
         stopSelf();
     }
     
     @Override
     public void onRevoke() {
+        Log.i(TAG, "🔄 onRevoke chamado");
         stopTunnel();
         super.onRevoke();
     }
     
     @Override
     public void onDestroy() {
+        Log.i(TAG, "💥 onDestroy chamado");
         stopTunnel();
         super.onDestroy();
     }
