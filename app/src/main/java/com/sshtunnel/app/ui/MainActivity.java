@@ -22,6 +22,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.sshtunnel.app.R;
 import com.sshtunnel.app.helper.LogManager;
@@ -30,7 +31,7 @@ import com.sshtunnel.app.model.ConnectionStatus;
 import com.sshtunnel.app.service.SSHConnectionService;
 import com.sshtunnel.app.service.HevSocks5TunnelService;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {  // ← MUDADO DE Activity PARA AppCompatActivity
 
     private static final String TAG = "MainActivity";
     
@@ -259,12 +260,15 @@ public class MainActivity extends Activity {
         intent.setAction(HevSocks5TunnelService.ACTION_CONNECT);
         intent.putExtra("socks_port", socksPort);
         intent.putExtra("socks_address", "127.0.0.1");
-        intent.putExtra("socks_user", sshService != null ? sshService.getCurrentConfig().getUsername() : "");
-        intent.putExtra("socks_pass", sshService != null ? sshService.getCurrentConfig().getPassword() : "");
-        intent.putExtra("payload", sshService != null ? sshService.getCurrentConfig().getPayload() : "");
-        intent.putExtra("sni", sshService != null ? sshService.getCurrentConfig().getSni() : "");
-        intent.putExtra("proxy_host", sshService != null ? sshService.getCurrentConfig().getProxyHost() : "");
-        intent.putExtra("proxy_port", sshService != null ? sshService.getCurrentConfig().getProxyPort() : 0);
+        
+        if (sshService != null && sshService.getCurrentConfig() != null) {
+            intent.putExtra("socks_user", sshService.getCurrentConfig().getUsername());
+            intent.putExtra("socks_pass", sshService.getCurrentConfig().getPassword());
+            intent.putExtra("payload", sshService.getCurrentConfig().getPayload());
+            intent.putExtra("sni", sshService.getCurrentConfig().getSni());
+            intent.putExtra("proxy_host", sshService.getCurrentConfig().getProxyHost());
+            intent.putExtra("proxy_port", sshService.getCurrentConfig().getProxyPort());
+        }
         
         startService(intent);
         appendLog("🌐 VPN iniciada na porta " + socksPort);
