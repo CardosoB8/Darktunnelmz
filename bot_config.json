@@ -1,0 +1,17 @@
+{
+  "antiLink": true,
+  "antiWords": true,
+  "autoMessages": true,
+  "removeDelay": {
+    "min": 3000,
+    "max": 10000
+  },
+  "deleteDelay": {
+    "min": 3000,
+    "max": 10000
+  },
+  "messageDelay": {
+    "min": 3600000,
+    "max": 7200000
+  }
+}
