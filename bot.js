@@ -11,7 +11,7 @@ const redis = require('redis');
 const express = require('express');
 
 // =================================================================
-// CONFIGURAÇÕES DO REDIS (MESMAS DO SEU SISTEMA)
+// CONFIGURAÇÕES
 // =================================================================
 const REDIS_URL = 'redis://default:JyefUsxHJljfdvs8HACumEyLE7XNgLvG@redis-19242.c266.us-east-1-3.ec2.cloud.redislabs.com:19242';
 const PHONE_NUMBER = '258858861745';
@@ -27,10 +27,9 @@ const redisClient = redis.createClient({
 });
 
 redisClient.on('error', (err) => console.error('Redis Error:', err));
-redisClient.on('connect', () => console.log('✅ Redis conectado'));
 
 // =================================================================
-// ESTADO DO BOT (CARREGADO DO REDIS)
+// ESTADO DO BOT
 // =================================================================
 let config = {
   antiLink: true,
@@ -49,7 +48,6 @@ let scheduledTasks = {};
 let scheduledMessages = [];
 let groupLeaveTimers = {};
 
-// Mensagens personalizadas
 let customMessages = {
   rules: `🚫 *USUÁRIO REMOVIDO*\n\nMotivo: Violação das regras do grupo\n\n📋 *REGRAS DO GRUPO:*\n1. Proibido enviar links não autorizados\n2. Proibido palavras ofensivas (mensagens serão apagadas)\n3. Respeite todos os membros\n4. Spam resulta em banimento\n\n⚡ Use !menu para ver comandos disponíveis`,
   botInfo: `🤖 *BOT DO GRUPO*\n\n✅ Versão: 3.0\n🛡️ Proteção: Anti-Link & Anti-Palavras\n⚡ Prefixo: ${PREFIX}\n📢 Mensagens automáticas: ATIVO\n\n💡 Use !menu para ver todos os comandos`,
@@ -70,43 +68,34 @@ async function loadFromRedis() {
     await redisClient.connect();
     console.log('🚀 Redis conectado!');
     
-    // Carregar config
     const configData = await redisClient.hGetAll('bot:config');
     if (configData && Object.keys(configData).length > 0) {
       config = { ...config, ...JSON.parse(configData.data || '{}') };
     }
     
-    // Carregar links
     const linksData = await redisClient.sMembers('bot:links');
     if (linksData.length > 0) allowedLinks = linksData;
     
-    // Carregar palavras
     const wordsData = await redisClient.sMembers('bot:words');
     if (wordsData.length > 0) bannedWords = wordsData;
     
-    // Carregar grupos
     const groupsData = await redisClient.sMembers('bot:groups');
     if (groupsData.length > 0) authorizedGroups = groupsData;
     
     const master = await redisClient.get('bot:master');
     if (master) masterGroup = master;
     
-    // Carregar mensagens personalizadas
     const msgData = await redisClient.hGetAll('bot:messages');
     if (msgData && Object.keys(msgData).length > 0) {
       customMessages = { ...customMessages, ...JSON.parse(msgData.data || '{}') };
     }
     
-    // Carregar agendamentos
     const scheduleData = await redisClient.lRange('bot:schedules', 0, -1);
     if (scheduleData.length > 0) {
       scheduledMessages = scheduleData.map(s => JSON.parse(s));
     }
     
     console.log('✅ Dados carregados do Redis');
-    console.log(`   Grupos: ${authorizedGroups.length}`);
-    console.log(`   Links: ${allowedLinks.length}`);
-    console.log(`   Palavras: ${bannedWords.length}`);
   } catch (err) {
     console.error('❌ Erro ao carregar Redis:', err.message);
   }
@@ -142,7 +131,7 @@ async function saveMessages() {
 }
 
 // =================================================================
-// FUNÇÕES AUXILIARES (MANTIDAS)
+// FUNÇÕES AUXILIARES
 // =================================================================
 const logger = pino({ level: 'silent' });
 const AUTH_FOLDER = './auth_info_baileys';
@@ -185,7 +174,6 @@ async function isGroupAdmin(sock, groupJid, participantJid) {
 }
 
 async function isBotAdmin(sock, groupJid) {
-  // Forçado para grupos autorizados
   if (groupJid === masterGroup || authorizedGroups.includes(groupJid)) {
     return true;
   }
@@ -208,7 +196,6 @@ function scheduleAutoMessage(sock, groupJid) {
     try {
       const randomMsg = customMessages.autoMessages[Math.floor(Math.random() * customMessages.autoMessages.length)];
       await sock.sendMessage(groupJid, { text: randomMsg });
-      console.log(`📢 Mensagem automática enviada para ${groupJid}`);
     } catch (err) {}
     scheduleAutoMessage(sock, groupJid);
   }, delay);
@@ -218,6 +205,28 @@ async function sendRulesOnRemove(sock, groupJid) {
   setTimeout(async () => {
     try { await sock.sendMessage(groupJid, { text: customMessages.rules }); } catch (err) {}
   }, randomDelay(3000, 10000));
+}
+
+// =================================================================
+// VERIFICAR AGENDAMENTOS
+// =================================================================
+function checkScheduledMessages(sock) {
+  setInterval(async () => {
+    const now = new Date();
+    const toSend = scheduledMessages.filter(s => {
+      const scheduledTime = new Date(s.datetime);
+      return !s.sent && scheduledTime <= now;
+    });
+    
+    for (const schedule of toSend) {
+      try {
+        await sock.sendMessage(schedule.target, { text: schedule.message });
+        schedule.sent = true;
+      } catch (err) {}
+    }
+    
+    if (toSend.length > 0) saveSchedules();
+  }, 30000);
 }
 
 // =================================================================
@@ -242,12 +251,11 @@ async function connectToWhatsApp() {
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr } = update;
     if (qr && !sock.authState.creds.registered && !connectionClosed) {
-      console.log('\n🔄 Gerando código de pareamento...\n');
+      console.log('🔄 Gerando código de pareamento...');
       try {
         await new Promise(resolve => setTimeout(resolve, 2000));
         const code = await sock.requestPairingCode(PHONE_NUMBER);
         console.log('✅ CÓDIGO:', code?.match(/.{1,4}/g)?.join('-') || code);
-        console.log('📱 WhatsApp > Aparelhos Conectados > Conectar um Aparelho\n');
       } catch (err) {}
     }
     if (connection === 'close') {
@@ -255,6 +263,7 @@ async function connectToWhatsApp() {
       setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
     } else if (connection === 'open') {
       console.log('✅ BOT CONECTADO AO WHATSAPP!');
+      checkScheduledMessages(sock);
     }
   });
 
@@ -307,10 +316,9 @@ async function connectToWhatsApp() {
     const command = args.shift()?.toLowerCase();
     if (!command) return;
 
-    // ========== COMANDOS PÚBLICOS ==========
+    // Comandos públicos
     if (command === 'menu') {
-      const menu = `📋 *MENU*\n\n${PREFIX}menu - Menu\n${PREFIX}info - Informações\n${PREFIX}bot - Sobre\n${PREFIX}regras - Regras`;
-      await sock.sendMessage(remoteJid, { text: menu });
+      await sock.sendMessage(remoteJid, { text: `📋 *MENU*\n\n!menu - Menu\n!info - Informações\n!bot - Sobre\n!regras - Regras` });
     }
     else if (command === 'info') {
       if (isGroup) {
@@ -329,7 +337,7 @@ async function connectToWhatsApp() {
       await sock.sendMessage(remoteJid, { text: customMessages.rules });
     }
 
-    // ========== COMANDOS DO OWNER (SÓ PRIVADO) ==========
+    // Comandos do Owner (só privado)
     if (!isSenderOwner) return;
     
     if (command === 'addlink') {
@@ -372,22 +380,53 @@ async function connectToWhatsApp() {
 }
 
 // =================================================================
-// SERVIDOR EXPRESS (PARA MANTER RENDER ATIVO)
+// SERVIDOR EXPRESS (PARA RENDER)
 // =================================================================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-  res.send('🤖 Bot WhatsApp está online!');
+  res.json({ 
+    status: 'online',
+    bot: 'Mr Doso',
+    version: '3.0',
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/health', (req, res) => {
   res.json({ 
-    status: 'online', 
+    status: 'healthy',
     redis: redisClient.isReady,
-    groups: authorizedGroups.length 
+    groups: authorizedGroups.length,
+    links: allowedLinks.length,
+    words: bannedWords.length,
+    uptime: process.uptime()
   });
 });
+
+// =================================================================
+// SISTEMA ANTI-SLEEP (Mantém o Render acordado)
+// =================================================================
+// Ping interno a cada 5 minutos
+setInterval(async () => {
+  try {
+    const http = require('http');
+    http.get(`http://localhost:${PORT}/health`, (res) => {
+      console.log(`🔄 Keep-alive interno: ${new Date().toLocaleTimeString()}`);
+    }).on('error', () => {});
+  } catch (err) {}
+}, 300000);
+
+// Ping externo a cada 10 minutos
+setInterval(async () => {
+  try {
+    const https = require('https');
+    https.get('https://darktunnelmz.onrender.com/health', (res) => {
+      console.log(`📡 Keep-alive externo: ${new Date().toLocaleTimeString()}`);
+    }).on('error', () => {});
+  } catch (err) {}
+}, 600000);
 
 // =================================================================
 // INICIAR TUDO
@@ -396,7 +435,7 @@ async function start() {
   await loadFromRedis();
   
   app.listen(PORT, () => {
-    console.log(`🌐 Servidor web rodando na porta ${PORT}`);
+    console.log(`🌐 Servidor rodando na porta ${PORT}`);
   });
   
   await connectToWhatsApp();
