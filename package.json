@@ -1,7 +1,7 @@
 {
   "name": "bot-doso",
-  "version": "6.0.0",
-  "description": "Bot WhatsApp Mr Doso com IA Gemini",
+  "version": "7.0.0",
+  "description": "Bot WhatsApp Mr Doso com IA DOSO",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",

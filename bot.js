@@ -33,7 +33,7 @@ const redisClient = redis.createClient({
 redisClient.on('error', (err) => console.error('Redis Error:', err));
 
 // =================================================================
-// CONEXÃO COM IA GEMINI
+// CONEXÃO COM IA DOSO
 // =================================================================
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const iaModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -77,7 +77,7 @@ let fixedMessage = null;
 let fixedMessageTimer = null;
 
 // =================================================================
-// MEMÓRIA DA IA
+// MEMÓRIA DA IA DOSO
 // =================================================================
 let iaMemory = {
   ativo: true,
@@ -90,7 +90,9 @@ let iaMemory = {
   regras: [],
   admins: [],
   dono: `${OWNER_DISPLAY} - ${OWNER_CONTACT}`,
-  welcomeMsg: null
+  welcomeMsg: null,
+  conversaContexto: [],
+  ultimasInteracoes: []
 };
 
 // =================================================================
@@ -102,7 +104,7 @@ let customMessages = {
   rules: `◜──────────────────◝\n     *REGRAS DO GRUPO*\n◞──────────────────◟\n1. Proibido enviar links\n   nao autorizados\n2. Proibido palavras ofensivas\n3. Respeite todos os membros\n4. Spam resulta em banimento\n\nComandos: !menu\n◝──────────────────◜`,
   removeMsg: `◜──────────────────◝\n    *USUARIO REMOVIDO*\n◞──────────────────◟\nMotivo: Violacao das regras\n\nUm membro foi removido por\ninfringir as regras.\n\nRegras: use !regras\n◝──────────────────◜`,
   wordWarning: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\nSua mensagem foi apagada\npor conter palavra proibida.\n\nLeia as regras: !regras\n◝──────────────────◜`,
-  botInfo: `◜──────────────────◝\n   *BOT MR DOSO v6.0*\n◞──────────────────◟\nProtecao: Anti-Link e\nAnti-Palavras\nIA: Gemini Ativada\n\nComandos: !menu\nCriado por: ${OWNER_DISPLAY}\n◝──────────────────◜`,
+  botInfo: `◜──────────────────◝\n   *BOT MR DOSO v7.0*\n◞──────────────────◟\nProtecao: Anti-Link e\nAnti-Palavras\nIA DOSO: Ativada\n\nComandos: !menu\nCriado por: ${OWNER_DISPLAY}\n◝──────────────────◜`,
   autoMessages: [
     "◜──────────────────◝\n      *LEMBRETE*\n◞──────────────────◟\nMantenham o respeito e\nevitam links nao\nautorizados!\n◝──────────────────◜",
     "◜──────────────────◝\n      *BOT ATIVO*\n◞──────────────────◟\nUse *!menu* para ver os\ncomandos disponiveis.\n◝──────────────────◜",
@@ -310,14 +312,15 @@ function checkScheduledMessages(sock) {
 }
 
 // =================================================================
-// FUNÇÕES DA IA GEMINI
+// FUNÇÕES DA IA DOSO
 // =================================================================
 async function askIA(pergunta, contexto) {
   try {
-    const prompt = `Voce e a Doso, assistente virtual do grupo WhatsApp do ${iaMemory.dono || 'Mr Doso'}.
+    const prompt = `Voce e a DOSO IA, assistente virtual do grupo WhatsApp do ${iaMemory.dono || 'Mr Doso'}.
+Criada por Mr Doso.
 Regras: ${iaMemory.regras.join('; ') || 'Nenhuma regra especifica'}
 Conhecimentos ensinados: ${JSON.stringify(iaMemory.conhecimentos)}
-Tom: ${iaMemory.tom === 'curto' ? 'Respostas curtas, maximo 2 linhas' : iaMemory.tom === 'normal' ? 'Respostas de 2-3 linhas' : 'Respostas detalhadas'}
+Tom: ${iaMemory.tom === 'curto' ? 'Respostas curtas, maximo 2 linhas' : iaMemory.tom === 'normal' ? 'Respostas de 2-3 linhas' : 'Respostas detalhadas, mas sem exageros'}
 
 Usuario: ${pergunta}
 
@@ -361,12 +364,122 @@ Pedido: "${mensagem}"`;
   }
 }
 
-// =================================================================
-// VERIFICAÇÃO DE SEGURANÇA - NUNCA REMOVER OWNER/ADMIN
-// =================================================================
-function isSafeToAction(sender, isOwner, isAdmin) {
-  // NUNCA remove, adverte ou apaga mensagens do dono ou admins
-  if (isOwner || isAdmin) return false;
+async function chatWithIA(pergunta, historico) {
+  try {
+    const contexto = historico.slice(-3).map(h => `Usuario: ${h.pergunta}\nDOSO IA: ${h.resposta}`).join('\n');
+    
+    const prompt = `Voce e a DOSO IA, assistente virtual do grupo WhatsApp do ${iaMemory.dono || 'Mr Doso'}.
+Criada por Mr Doso.
+Tom: ${iaMemory.tom === 'curto' ? 'Respostas curtas, maximo 2 linhas' : iaMemory.tom === 'normal' ? 'Respostas de 2-3 linhas' : 'Respostas detalhadas, mas sem exageros'}
+
+Contexto da conversa anterior:
+${contexto}
+
+Conhecimentos ensinados: ${JSON.stringify(iaMemory.conhecimentos)}
+Regras do grupo: ${iaMemory.regras.join('; ') || 'Nenhuma'}
+
+Usuario pergunta: ${pergunta}
+
+Responda de forma direta, util e amigavel. NAO invente informacoes. Se nao souber, diga: "Nao tenho essa informacao. Use !ensinar para me ensinar."`;
+
+    const result = await iaModel.generateContent(prompt);
+    return result.response.text().substring(0, 300);
+  } catch (err) {
+    return null;
+  }
+}
+
+async function executeAction(ordem, sock, msg, remoteJid, sender) {
+  try {
+    const prompt = `Voce e a DOSO IA, assistente de um grupo WhatsApp. Voce recebe ordens em portugues e deve executar UMA das seguintes acoes. Responda APENAS no formato ACAO|DETALHES.
+
+Acoes disponiveis:
+1. APAGAR - Apagar a mensagem atual
+2. BANIR - Remover um usuario (precisa mencionar @usuario)
+3. ADVERTIR - Dar advertencia a um usuario
+4. MENCIONAR_TODOS - Mencionar todos os membros com uma mensagem
+5. FIXAR - Fixar uma mensagem no grupo
+6. LEMBRETE - Criar um lembrete (formato: minutos|mensagem)
+7. REGRA - Adicionar uma regra ao grupo
+8. RESPONDER - Responder uma pergunta
+9. MODERAR - Ativar/desativar moderacao
+10. NADA - Nenhuma acao necessaria
+
+Ordem recebida: "${ordem}"
+
+Contexto: Grupo=${remoteJid}, Remetente=${sender}
+
+Responda APENAS no formato: ACAO|DETALHES`;
+
+    const result = await iaModel.generateContent(prompt);
+    const texto = result.response.text().trim();
+    const partes = texto.split('|');
+    const acao = partes[0]?.trim().toUpperCase();
+    const detalhes = partes.slice(1).join('|').trim();
+    
+    console.log(`[DOSO IA] Acao detectada: ${acao} - ${detalhes}`);
+    
+    switch (acao) {
+      case 'APAGAR':
+        try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
+        return 'Mensagem apagada!';
+      
+      case 'BANIR':
+        const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        if (mentioned.length > 0) {
+          await sock.groupParticipantsUpdate(remoteJid, mentioned, 'remove');
+          return 'Usuario removido!';
+        }
+        return 'Preciso que mencione o usuario com @.';
+      
+      case 'MENCIONAR_TODOS':
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${detalhes}\n◝──────────────────◜`, mentions: [] });
+        return 'Todos mencionados!';
+      
+      case 'FIXAR':
+        fixedMessage = { text: detalhes, active: true, setBy: sender, randomMin: 30, randomMax: 30 };
+        await saveFixedMessage();
+        startFixedMessage(sock);
+        return `Mensagem fixada: "${detalhes}"`;
+      
+      case 'LEMBRETE':
+        const [minutos, ...msgParts] = detalhes.split('|');
+        const mensagem = msgParts.join('|');
+        if (minutos && mensagem) {
+          setTimeout(async () => {
+            await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *LEMBRETE*\n◞──────────────────◟\n${mensagem}\n◝──────────────────◜`, mentions: [] });
+          }, parseInt(minutos) * 60000);
+          return `Lembrete agendado para ${minutos} minutos!`;
+        }
+        return 'Formato invalido. Use: minutos|mensagem';
+      
+      case 'REGRA':
+        iaMemory.regras.push(detalhes);
+        await saveIAMemory();
+        return `Regra adicionada: "${detalhes}"`;
+      
+      case 'MODERAR':
+        if (detalhes.toLowerCase().includes('ativar') || detalhes.toLowerCase().includes('on')) {
+          iaMemory.moderar = true;
+        } else {
+          iaMemory.moderar = false;
+        }
+        await saveIAMemory();
+        return `Moderacao ${iaMemory.moderar ? 'ATIVADA' : 'DESATIVADA'}!`;
+      
+      case 'RESPONDER':
+        return detalhes;
+      
+      default:
+        return 'Nao entendi a acao. Tente: apagar, banir @user, mencionar todos, fixar, lembrete, regra, moderar.';
+    }
+  } catch (err) {
+    return `Erro ao executar acao: ${err.message}`;
+  }
+}
+
+function isSafeToAction(sender, isSenderOwner, isSenderAdmin) {
+  if (isSenderOwner || isSenderAdmin) return false;
   return true;
 }
 
@@ -411,7 +524,6 @@ async function connectToWhatsApp() {
       }
     }
     
-    // Código existente de autorização de grupo
     if (action === 'add' && participants.includes(sock.user.id)) {
       console.log(`Bot adicionado ao grupo ${id}`);
       if (!masterGroup) {
@@ -448,7 +560,7 @@ async function connectToWhatsApp() {
     const isBotAdminStatus = isGroup ? await isBotAdmin(sock, remoteJid) : false;
     const safe = isSafeToAction(sender, isSenderOwner, isSenderAdmin);
 
-    // ========== SISTEMAS DE PROTEÇÃO (só afetam membros normais) ==========
+    // ========== SISTEMAS DE PROTEÇÃO ==========
     
     // ANTI-STATUS
     if (isGroup && isGroupAuthorized(remoteJid) && safe && config.antiStatus && isBotAdminStatus) {
@@ -535,50 +647,9 @@ async function connectToWhatsApp() {
         setTimeout(async () => {
           try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
           addToLog({ action: 'ia_moderate', sender, group: remoteJid });
-          await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *IA MODERACAO*\n◞──────────────────◟\n@${sender.split('@')[0]} sua mensagem foi\napagada pela IA por conter\nconteudo inadequado.\n◝──────────────────◜`, mentions: [sender] });
+          await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *DOSO IA*\n◞──────────────────◟\n@${sender.split('@')[0]} sua mensagem foi\napagada por conter\nconteudo inadequado.\n◝──────────────────◜`, mentions: [sender] });
         }, randomDelay(3000, 8000));
         return;
-      }
-    }
-
-    // ========== IA RESPOSTAS NATURAIS ==========
-    if (iaMemory.ativo && iaMemory.responder && isGroup && isGroupAuthorized(remoteJid)) {
-      const textoLimpo = messageContent.toLowerCase().trim();
-      const palavrasPergunta = ['como', 'quem', 'onde', 'quando', 'porque', 'qual', '?', 'o que', 'me ajuda', 'duvida', 'ajuda', 'saber', 'explica', 'ensina'];
-      const parecePergunta = palavrasPergunta.some(p => textoLimpo.includes(p));
-      
-      if (parecePergunta) {
-        const respostaIA = await askIA(messageContent, { grupo: remoteJid, usuario: pushName });
-        if (respostaIA) {
-          setTimeout(async () => {
-            try {
-              await sock.sendMessage(remoteJid, { 
-                text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${respostaIA}\n◝──────────────────◜`,
-                mentions: [sender]
-              }, { quoted: msg });
-            } catch (err) {}
-          }, randomDelay(2000, 4000));
-          return;
-        }
-      }
-      
-      // Lembrete natural via IA
-      if (textoLimpo.includes('lembra') || textoLimpo.includes('avisa') || textoLimpo.includes('alerta')) {
-        const reminderData = await parseReminderIA(messageContent);
-        if (reminderData && reminderData.minutos && reminderData.mensagem) {
-          setTimeout(async () => {
-            await sock.sendMessage(remoteJid, { 
-              text: `◜──────────────────◝\n       *LEMBRETE IA*\n◞──────────────────◟\n@${sender.split('@')[0]}: ${reminderData.mensagem}\n◝──────────────────◜`,
-              mentions: [sender]
-            });
-          }, reminderData.minutos * 60000);
-          
-          await sock.sendMessage(remoteJid, { 
-            text: `◜──────────────────◝\n       *OK IA*\n◞──────────────────◟\nTe aviso em ${reminderData.minutos} min!\n◝──────────────────◜`,
-            mentions: [sender]
-          }, { quoted: msg });
-          return;
-        }
       }
     }
 
@@ -594,7 +665,49 @@ async function connectToWhatsApp() {
     // ========== COMANDOS COM PREFIXO ==========
     const args = messageContent.startsWith(PREFIX) ? messageContent.slice(PREFIX.length).trim().split(/ +/) : [];
     const command = args.shift()?.toLowerCase();
-    if (!command) return;
+    if (!command) {
+      // ========== IA RESPOSTAS NATURAIS (SEM COMANDO) ==========
+      if (iaMemory.ativo && iaMemory.responder && isGroup && isGroupAuthorized(remoteJid)) {
+        const textoLimpo = messageContent.toLowerCase().trim();
+        const palavrasPergunta = ['como', 'quem', 'onde', 'quando', 'porque', 'qual', '?', 'o que', 'me ajuda', 'duvida', 'ajuda', 'saber', 'explica', 'ensina'];
+        const parecePergunta = palavrasPergunta.some(p => textoLimpo.includes(p));
+        
+        if (parecePergunta) {
+          const respostaIA = await askIA(messageContent, { grupo: remoteJid, usuario: pushName });
+          if (respostaIA) {
+            setTimeout(async () => {
+              try {
+                await sock.sendMessage(remoteJid, { 
+                  text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${respostaIA}\n◝──────────────────◜`,
+                  mentions: [sender]
+                }, { quoted: msg });
+              } catch (err) {}
+            }, randomDelay(2000, 4000));
+            return;
+          }
+        }
+        
+        // Lembrete natural via IA
+        if (textoLimpo.includes('lembra') || textoLimpo.includes('avisa') || textoLimpo.includes('alerta')) {
+          const reminderData = await parseReminderIA(messageContent);
+          if (reminderData && reminderData.minutos && reminderData.mensagem) {
+            setTimeout(async () => {
+              await sock.sendMessage(remoteJid, { 
+                text: `◜──────────────────◝\n       *LEMBRETE IA*\n◞──────────────────◟\n@${sender.split('@')[0]}: ${reminderData.mensagem}\n◝──────────────────◜`,
+                mentions: [sender]
+              });
+            }, reminderData.minutos * 60000);
+            
+            await sock.sendMessage(remoteJid, { 
+              text: `◜──────────────────◝\n       *OK IA*\n◞──────────────────◟\nTe aviso em ${reminderData.minutos} min!\n◝──────────────────◜`,
+              mentions: [sender]
+            }, { quoted: msg });
+            return;
+          }
+        }
+      }
+      return;
+    }
 
     // ========== DELETE ==========
     if (command === 'delete' && isGroup) {
@@ -714,14 +827,14 @@ async function connectToWhatsApp() {
 
     // Status
     if (command === 'status') {
-      const status = `◜──────────────────◝\n     *STATUS DO BOT*\n◞──────────────────◟\nOnline: Sim\nDono: ${OWNER_DISPLAY}\nGrupos: ${authorizedGroups.length}\nLinks: ${allowedLinks.length}\nPalavras: ${bannedWords.length}\nExtensoes: ${bannedExtensions.length}\nRespostas: ${autoResponses.length}\nComandos: ${customCommands.length}\nAgendamentos: ${scheduledMessages.filter(s => !s.sent).length}\nIA: ${iaMemory.ativo ? 'ON' : 'OFF'}\nAnti-Link: ${config.antiLink ? 'ON' : 'OFF'}\nAnti-Palavras: ${config.antiWords ? 'ON' : 'OFF'}\nAnti-Flood: ${config.antiFlood ? 'ON' : 'OFF'}\nAnti-APK: ${config.antiApk ? 'ON' : 'OFF'}\nAdvertencias max: ${config.maxWarnings}\n◝──────────────────◜`;
+      const status = `◜──────────────────◝\n     *STATUS DO BOT*\n◞──────────────────◟\nOnline: Sim\nDono: ${OWNER_DISPLAY}\nGrupos: ${authorizedGroups.length}\nLinks: ${allowedLinks.length}\nPalavras: ${bannedWords.length}\nExtensoes: ${bannedExtensions.length}\nRespostas: ${autoResponses.length}\nComandos: ${customCommands.length}\nAgendamentos: ${scheduledMessages.filter(s => !s.sent).length}\nIA DOSO: ${iaMemory.ativo ? 'ON' : 'OFF'}\nAnti-Link: ${config.antiLink ? 'ON' : 'OFF'}\nAnti-Palavras: ${config.antiWords ? 'ON' : 'OFF'}\nAnti-Flood: ${config.antiFlood ? 'ON' : 'OFF'}\nAnti-APK: ${config.antiApk ? 'ON' : 'OFF'}\nAdvertencias max: ${config.maxWarnings}\n◝──────────────────◜`;
       await sock.sendMessage(remoteJid, { text: status });
       return;
     }
 
     // Menu do Owner
     if (command === 'owner' || command === 'comandos') {
-      const ownerMenu = `◜──────────────────◝\n   *COMANDOS DO OWNER*\n◞──────────────────◟\n!addlink [d] - Add link\n!dellink [d] - Del link\n!addword [p] - Add palavra\n!delword [p] - Del palavra\n!addextensao [ext]\n!delextensao [ext]\n!addresposta [pal] | [resp]\n!addcomando [n] | [r] | pub\n!setflood [msgs] [seg]\n!setwarn [max]\n!antilink on/off\n!antiwords on/off\n!antiflood on/off\n!antiapk on/off\n!antistatus on/off\n!antimencao on/off\n!schedule [D/M/A] [H:M] [m]\n!fixar [min] [max] [msg]\n!ensinar [t] | [r]\n!ia - Comandos da IA\n!status\n!log\n!backup\n◝──────────────────◜`;
+      const ownerMenu = `◜──────────────────◝\n   *COMANDOS DO OWNER*\n◞──────────────────◟\n!chat [pergunta]\n!ia acao [ordem]\n!ia testar\n!ia debug\n!ensinar [t] | [r]\n!addlink [d]\n!addword [p]\n!addextensao [ext]\n!addresposta [pal] | [resp]\n!addcomando [n] | [r] | pub\n!setflood [msgs] [seg]\n!setwarn [max]\n!antilink on/off\n!antiwords on/off\n!antiflood on/off\n!antiapk on/off\n!schedule [D/M/A] [H:M] [m]\n!status\n!log\n!backup\n◝──────────────────◜`;
       await sock.sendMessage(remoteJid, { text: ownerMenu });
       return;
     }
@@ -736,7 +849,60 @@ async function connectToWhatsApp() {
       return;
     }
 
-    // ========== COMANDOS DA IA ==========
+    // ========== NOVO: !chat ==========
+    if (command === 'chat') {
+      const pergunta = args.join(' ');
+      if (!pergunta) {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!chat [sua pergunta]\n\nConverse livremente comigo!\n◝──────────────────◜` });
+        return;
+      }
+      
+      const resposta = await chatWithIA(pergunta, iaMemory.ultimasInteracoes);
+      
+      iaMemory.ultimasInteracoes.push({ pergunta, resposta, time: new Date().toISOString() });
+      if (iaMemory.ultimasInteracoes.length > 10) iaMemory.ultimasInteracoes.shift();
+      await saveIAMemory();
+      
+      if (resposta) {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${resposta}\n◝──────────────────◜` });
+      } else {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNao consegui responder.\nTente novamente.\n◝──────────────────◜` });
+      }
+      return;
+    }
+
+    // ========== NOVO: !ia acao ==========
+    if (command === 'ia' && args[0]?.toLowerCase() === 'acao') {
+      const ordem = args.slice(1).join(' ');
+      if (!ordem) {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!ia acao [sua ordem]\n\nExemplos:\n!ia acao apague essa msg\n!ia acao mencione todos\n!ia acao fixar Regras\n!ia acao banir @usuario\n◝──────────────────◜` });
+        return;
+      }
+      
+      const resultado = await executeAction(ordem, sock, msg, remoteJid, sender);
+      await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *DOSO IA ACAO*\n◞──────────────────◟\n${resultado}\n◝──────────────────◜` });
+      return;
+    }
+
+    // ========== NOVO: !ia testar ==========
+    if (command === 'ia' && args[0]?.toLowerCase() === 'testar') {
+      const teste = await chatWithIA('Responda com: DOSO IA funcionando perfeitamente!', []);
+      if (teste) {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *TESTE IA*\n◞──────────────────◟\n${teste}\n\n✅ IA funcionando!\n◝──────────────────◜` });
+      } else {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *TESTE IA*\n◞──────────────────◟\n❌ IA nao respondeu.\nVerifique a API Key.\n◝──────────────────◜` });
+      }
+      return;
+    }
+
+    // ========== NOVO: !ia debug ==========
+    if (command === 'ia' && args[0]?.toLowerCase() === 'debug') {
+      const debug = `◜──────────────────◝\n     *DEBUG IA*\n◞──────────────────◟\nAtivo: ${iaMemory.ativo}\nModerar: ${iaMemory.moderar}\nResponder: ${iaMemory.responder}\nTom: ${iaMemory.tom}\nConhecimentos: ${Object.keys(iaMemory.conhecimentos).length}\nPalavras: ${iaMemory.palavras.length}\nLinks: ${iaMemory.links.length}\nRegras: ${iaMemory.regras.length}\nInteracoes: ${iaMemory.ultimasInteracoes.length}\n◝──────────────────◜`;
+      await sock.sendMessage(remoteJid, { text: debug });
+      return;
+    }
+
+    // ========== COMANDOS DA IA (ENSINAR E GERENCIAR) ==========
     if (command === 'ensinar') {
       const fullArgs = args.join(' ');
       const parts = fullArgs.split('|');
@@ -802,7 +968,7 @@ async function connectToWhatsApp() {
       if (opt === 'reset') { iaMemory.conhecimentos = {}; await saveIAMemory(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK IA*\n◞──────────────────◟\nMemoria resetada!\n◝──────────────────◜` }); return; }
       
       // Status padrão
-      const statusIA = `◜──────────────────◝\n     *STATUS IA*\n◞──────────────────◟\nAtivo: ${iaMemory.ativo ? 'ON' : 'OFF'}\nModerar: ${iaMemory.moderar ? 'ON' : 'OFF'}\nResponder: ${iaMemory.responder ? 'ON' : 'OFF'}\nTom: ${iaMemory.tom}\nConhecimentos: ${Object.keys(iaMemory.conhecimentos).length}\n\nComandos:\n!ia on/off\n!ia moderar on/off\n!ia responder on/off\n!ia tom curto/normal/completo\n!ia memoria\n!ia reset\n◝──────────────────◜`;
+      const statusIA = `◜──────────────────◝\n     *STATUS IA*\n◞──────────────────◟\nAtivo: ${iaMemory.ativo ? 'ON' : 'OFF'}\nModerar: ${iaMemory.moderar ? 'ON' : 'OFF'}\nResponder: ${iaMemory.responder ? 'ON' : 'OFF'}\nTom: ${iaMemory.tom}\nConhecimentos: ${Object.keys(iaMemory.conhecimentos).length}\n\nComandos:\n!ia on/off\n!ia moderar on/off\n!ia responder on/off\n!ia tom curto/normal/completo\n!ia memoria\n!ia reset\n!chat [pergunta]\n!ia acao [ordem]\n!ia testar\n!ia debug\n◝──────────────────◜`;
       await sock.sendMessage(remoteJid, { text: statusIA });
       return;
     }
@@ -1087,24 +1253,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-  res.json({ status: 'online', bot: 'Mr Doso IA', version: '6.0', timestamp: new Date().toISOString() });
+  res.json({ status: 'online', bot: 'Mr Doso', ia: 'DOSO IA', version: '7.0', timestamp: new Date().toISOString() });
 });
 
 app.get('/health', (req, res) => {
   res.json({ 
-    status: 'healthy', 
-    redis: redisClient.isReady, 
-    groups: authorizedGroups.length, 
-    links: allowedLinks.length, 
-    words: bannedWords.length,
-    ia: iaMemory.ativo,
-    uptime: process.uptime() 
+    status: 'healthy', redis: redisClient.isReady, groups: authorizedGroups.length, 
+    links: allowedLinks.length, words: bannedWords.length, ia: iaMemory.ativo, uptime: process.uptime() 
   });
 });
 
-// =================================================================
-// SISTEMA ANTI-SLEEP
-// =================================================================
+// Anti-sleep
 setInterval(async () => {
   try { const http = require('http'); http.get(`http://localhost:${PORT}/health`, (res) => { console.log(`Keep-alive: ${new Date().toLocaleTimeString()}`); }).on('error', () => {}); } catch (err) {}
 }, 300000);
