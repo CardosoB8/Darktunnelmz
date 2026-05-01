@@ -9,6 +9,7 @@ const pino = require('pino');
 const { Boom } = require('@hapi/boom');
 const redis = require('redis');
 const express = require('express');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 // CONFIGURAÇÕES
 // =================================================================
 const REDIS_URL = 'redis://default:JyefUsxHJljfdvs8HACumEyLE7XNgLvG@redis-19242.c266.us-east-1-3.ec2.cloud.redislabs.com:19242';
