@@ -33,7 +33,7 @@ redisClient.on('error', (err) => console.error('Redis Error:', err));
 // CONEXÃO COM IA DOSO
 // =================================================================
 // ✅ SUBSTITUIR por isto:
-const GEMINI_API_KEY = 'AIzaSyCcaIzjqVnKjpflztCkJBdt0KfyKFPGyjk';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const iaModel = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
