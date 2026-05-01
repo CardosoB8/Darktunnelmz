@@ -1,16 +1,25 @@
 {
   "name": "bot-doso",
-  "version": "1.0.0",
-  "description": "Bot WhatsApp Mr Doso",
+  "version": "6.0.0",
+  "description": "Bot WhatsApp Mr Doso com IA Gemini",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "Mr Doso",
+  "license": "ISC",
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.21",
     "@hapi/boom": "^10.0.1",
+    "@google/generative-ai": "^0.21.0",
+    "@whiskeysockets/baileys": "^6.7.7",
+    "express": "^4.18.2",
     "pino": "^8.17.2",
-    "redis": "^4.6.13",
-    "express": "^4.18.2"
+    "pino-pretty": "^10.3.1",
+    "redis": "^4.6.13"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
