@@ -53,6 +53,7 @@ let allowedLinks = [], bannedWords = [], bannedExtensions = [], authorizedGroups
 let masterGroup = null, scheduledTasks = {}, scheduledMessages = [], groupLeaveTimers = {};
 let autoResponses = [], customCommands = [], floodTracker = {}, actionLog = [];
 let warnings = {}, dailyReminders = {}, fixedMessage = null, fixedMessageTimer = null;
+let pendingAction = {}; // Ações pendentes do owner (aguardando escolha de grupo)
 
 let iaMemory = {
   ativo: true, moderar: false, responder: false, tom: 'curto',
@@ -74,7 +75,7 @@ let customMessages = {
   rules: `◜──────────────────◝\n     *REGRAS DO GRUPO*\n◞──────────────────◟\n1. Proibido enviar links nao autorizados\n2. Proibido palavras ofensivas\n3. Respeite todos os membros\n4. Spam resulta em banimento\n\nComandos: !menu\n◝──────────────────◜`,
   removeMsg: `◜──────────────────◝\n    *USUARIO REMOVIDO*\n◞──────────────────◟\nMotivo: Violacao das regras\n\nUm membro foi removido por infringir as regras.\n\nRegras: use !regras\n◝──────────────────◜`,
   wordWarning: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\nSua mensagem foi apagada por conter palavra proibida.\n\nLeia as regras: !regras\n◝──────────────────◜`,
-  botInfo: `◜──────────────────◝\n   *BOT MR DOSO v9.0*\n◞──────────────────◟\nProtecao: Anti-Link e Anti-Palavras\nIA DOSO: Ativada\n\nComandos: !menu\nCriado por: ${OWNER_DISPLAY}\n◝──────────────────◜`,
+  botInfo: `◜──────────────────◝\n   *BOT MR DOSO v10.0*\n◞──────────────────◟\nProtecao: Anti-Link e Anti-Palavras\nIA DOSO: Ativada\n\nComandos: !menu\nCriado por: ${OWNER_DISPLAY}\n◝──────────────────◜`,
   autoMessages: [
     "◜──────────────────◝\n      *LEMBRETE*\n◞──────────────────◟\nMantenham o respeito e evitem links nao autorizados!\n◝──────────────────◜",
     "◜──────────────────◝\n      *BOT ATIVO*\n◞──────────────────◟\nUse *!menu* para ver os comandos disponiveis.\n◝──────────────────◜",
@@ -174,6 +175,119 @@ async function analyzeMessageWithIA(message) {
   } catch (err) { return { acao: 'ERRO', subAcao: 'timeout', mensagem: '' }; }
 }
 
+async function convertOrderToCommand(ordem) {
+  const ctx = gerarContextoIA();
+  const prompt = `Converta esta ordem em um comando EXATO do bot. Responda APENAS o comando, sem texto adicional.\n\n${ctx}\n\nOrdem: "${ordem}"\n\nComandos disponiveis: !schedule, !fixar, !todos, !addlink, !addword, !delete, !ban`;
+  const resposta = await callGeminiAPI(prompt);
+  return resposta ? resposta.trim() : null;
+}
+
+function parseAndExecuteCommand(comandoTexto, sock, msg, remoteJid, sender, isGroup, isSenderAdmin, isSenderOwner, isBotAdminStatus) {
+  if (!comandoTexto || !comandoTexto.startsWith(PREFIX)) return false;
+  const args = comandoTexto.slice(PREFIX.length).trim().split(/ +/);
+  const command = args.shift()?.toLowerCase();
+  if (!command) return false;
+
+  if (command === 'schedule' && isGroup) {
+    if (!isSenderAdmin && !isSenderOwner) return false;
+    const d = args[0], h = args[1], m = args.slice(2).join(' ');
+    if (!d || !h || !m) return false;
+    const [dd, mm, aa] = d.split('/'), [hh, mi] = h.split(':');
+    const dt = new Date(aa, mm - 1, dd, hh, mi);
+    if (isNaN(dt.getTime())) return false;
+    scheduledMessages.push({ id: Date.now().toString(), target: remoteJid, datetime: dt.toISOString(), message: m, sent: false });
+    setTimeout(async () => { try { await saveSchedules(); } catch (err) {} }, 100);
+    return true;
+  }
+
+  if (command === 'fixar' && isGroup) {
+    if (!isSenderAdmin && !isSenderOwner) return false;
+    const o = args[0]?.toLowerCase();
+    if (o === 'off') { fixedMessage = null; setTimeout(async () => { try { await saveFixedMessage(); if (fixedMessageTimer) clearInterval(fixedMessageTimer); } catch (err) {} }, 100); return true; }
+    const min = parseInt(args[0]), max = parseInt(args[1]); let t;
+    if (!isNaN(min) && !isNaN(max)) { t = args.slice(2).join(' '); } else { t = args.join(' '); }
+    if (!t) return false;
+    fixedMessage = { text: t, active: true, setBy: sender, randomMin: !isNaN(min) ? min : 30, randomMax: !isNaN(max) ? max : 30 };
+    setTimeout(async () => { try { await saveFixedMessage(); startFixedMessage(sock); } catch (err) {} }, 100);
+    return true;
+  }
+
+  if (command === 'todos' && isGroup) {
+    if (!isSenderAdmin && !isSenderOwner) return false;
+    const t = args.join(' ') || 'Atencao a todos!';
+    setTimeout(async () => { try { const m = await sock.groupMetadata(remoteJid); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *TODOS*\n◞──────────────────◟\n${t}\n◝──────────────────◜`, mentions: m.participants.map(p => p.id) }); } catch (err) { await sock.sendMessage(remoteJid, { text: t }); } }, 500);
+    return true;
+  }
+
+  if (command === 'delete' && isGroup) {
+    if (!isSenderAdmin && !isSenderOwner) return false;
+    const qm = msg.message?.extendedTextMessage?.contextInfo?.stanzaId, qs = msg.message?.extendedTextMessage?.contextInfo?.participant;
+    if (!qm) return false;
+    setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: qm, participant: qs } }); } catch (err) {} }, randomDelay(config.deleteCmdDelay.min, config.deleteCmdDelay.max));
+    return true;
+  }
+
+  if (command === 'ban' && isGroup) {
+    if (!isSenderAdmin && !isSenderOwner) return false;
+    const m = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    if (m.length > 0 && isBotAdminStatus) { setTimeout(async () => { try { await sock.groupParticipantsUpdate(remoteJid, m, 'remove'); } catch (err) {} }, 500); return true; }
+    return false;
+  }
+
+  if (command === 'addlink') { if (!isSenderOwner) return false; const l = args[0]?.toLowerCase(); if (!l) return false; if (!allowedLinks.includes(l)) { allowedLinks.push(l); setTimeout(async () => { try { await saveLinks(); } catch (err) {} }, 100); } return true; }
+  if (command === 'addword') { if (!isSenderOwner) return false; const w = args.join(' ').toLowerCase(); if (!w) return false; if (!bannedWords.includes(w)) { bannedWords.push(w); setTimeout(async () => { try { await saveWords(); } catch (err) {} }, 100); } return true; }
+
+  return false;
+}
+
+// =================================================================
+// FUNÇÃO PARA ENCAMINHAR MENSAGENS (ARQUIVO, FOTO, LINK, ETC.)
+// =================================================================
+async function forwardMessage(sock, msg, targetJid) {
+  try {
+    const messageType = Object.keys(msg.message)[0];
+    if (messageType === 'conversation' || messageType === 'extendedTextMessage') {
+      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      await sock.sendMessage(targetJid, { text: `📩 *Encaminhado via DOSO IA:*\n\n${text}` });
+    } else if (messageType === 'imageMessage') {
+      await sock.sendMessage(targetJid, { 
+        image: msg.message.imageMessage.url ? { url: msg.message.imageMessage.url } : msg.message.imageMessage,
+        caption: `📸 *Encaminhado via DOSO IA*`
+      });
+    } else if (messageType === 'videoMessage') {
+      await sock.sendMessage(targetJid, { 
+        video: msg.message.videoMessage.url ? { url: msg.message.videoMessage.url } : msg.message.videoMessage,
+        caption: `🎬 *Encaminhado via DOSO IA*`
+      });
+    } else if (messageType === 'documentMessage') {
+      await sock.sendMessage(targetJid, { 
+        document: msg.message.documentMessage.url ? { url: msg.message.documentMessage.url } : msg.message.documentMessage,
+        fileName: msg.message.documentMessage.fileName || 'arquivo',
+        caption: `📄 *Encaminhado via DOSO IA*`
+      });
+    } else if (messageType === 'audioMessage') {
+      await sock.sendMessage(targetJid, { 
+        audio: msg.message.audioMessage.url ? { url: msg.message.audioMessage.url } : msg.message.audioMessage,
+        ptt: msg.message.audioMessage.ptt || false
+      });
+    } else if (messageType === 'stickerMessage') {
+      await sock.sendMessage(targetJid, { 
+        sticker: msg.message.stickerMessage.url ? { url: msg.message.stickerMessage.url } : msg.message.stickerMessage
+      });
+    } else {
+      // Forward genérico
+      await sock.sendMessage(targetJid, { forwardingScore: 999, ...msg.message });
+    }
+    return true;
+  } catch (err) {
+    console.error('Erro ao encaminhar:', err.message);
+    return false;
+  }
+}
+
+// =================================================================
+// FUNÇÃO PRINCIPAL DO BOT
+// =================================================================
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
   const { version } = await fetchLatestBaileysVersion();
@@ -200,6 +314,108 @@ async function connectToWhatsApp() {
     const messageContent = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || '';
     const isSenderOwner = isOwner(sender), isSenderAdmin = isGroup ? await isGroupAdmin(sock, remoteJid, sender) : false, isBotAdminStatus = isGroup ? await isBotAdmin(sock, remoteJid) : false, safe = !isSenderOwner && !isSenderAdmin;
 
+    // ========== BLOQUEAR OUTRAS PESSOAS NO PRIVADO ==========
+    if (!isGroup && !isSenderOwner) {
+      const text = messageContent.toLowerCase().trim();
+      // Ignora mensagens do próprio bot
+      if (msg.key.fromMe) return;
+      // Responde educadamente que não conversa no privado
+      await sock.sendMessage(remoteJid, { 
+        text: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\nNao tenho permissao para\nconversar no privado.\n\nFale com o adm:\nMr Doso - ${OWNER_CONTACT}\n◝──────────────────◜`
+      });
+      return;
+    }
+
+    // ========== AÇÕES PENDENTES DO OWNER (ESCOLHER GRUPO) ==========
+    if (!isGroup && isSenderOwner && pendingAction[sender]) {
+      const escolha = parseInt(messageContent.trim());
+      const grupos = authorizedGroups;
+      if (!isNaN(escolha) && escolha >= 1 && escolha <= grupos.length) {
+        const grupoEscolhido = grupos[escolha - 1];
+        const acao = pendingAction[sender];
+        const comandoCompleto = acao.comando;
+        // Executar no grupo escolhido
+        const fakeMsg = { ...msg, key: { ...msg.key, remoteJid: grupoEscolhido } };
+        const executou = parseAndExecuteCommand(comandoCompleto, sock, fakeMsg, grupoEscolhido, sender, true, true, true, true);
+        if (executou) {
+          await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado no grupo ${escolha}!\n◝──────────────────◜` });
+        } else {
+          await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nFalha ao executar comando.\n◝──────────────────◜` });
+        }
+        delete pendingAction[sender];
+        return;
+      } else {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNumero invalido. Escolha\nentre 1 e ${grupos.length}.\n◝──────────────────◜` });
+        return;
+      }
+    }
+
+    // ========== DONO ENVIA ORDEM NATURAL NO PRIVADO ==========
+    if (!isGroup && isSenderOwner && !messageContent.startsWith(PREFIX)) {
+      const ordem = messageContent.trim();
+      const palavrasOrdem = ['agenda', 'agendar', 'agende', 'fixa', 'fixar', 'fixe', 'menciona', 'mencione', 'apaga', 'apague', 'delete', 'remove', 'remover', 'bane', 'banir', 'adiciona link', 'adiciona palavra'];
+      const pareceOrdem = palavrasOrdem.some(p => ordem.toLowerCase().includes(p));
+
+      // Verificar se é comando de encaminhar (responder mensagem)
+      const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+      if (quotedMsg && pareceOrdem) {
+        // É uma resposta a uma mensagem com ordem - encaminhar para grupo
+        const comandoGerado = await convertOrderToCommand(ordem + ' | encaminhar esta mensagem');
+        if (comandoGerado) {
+          // Perguntar para qual grupo
+          const grupos = authorizedGroups;
+          if (grupos.length === 0) {
+            await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum grupo autorizado!\nUse !authgroup no grupo.\n◝──────────────────◜` });
+            return;
+          }
+          let lista = `◜──────────────────◝\n   *ESCOLHA O GRUPO*\n◞──────────────────◟\n`;
+          grupos.forEach((g, i) => { lista += `${i+1}. ${g.split('@')[0]}\n`; });
+          lista += `\nResponda com o numero.\n◝──────────────────◜`;
+          pendingAction[sender] = { comando: comandoGerado, encaminhar: true, quotedMsg };
+          await sock.sendMessage(remoteJid, { text: lista });
+          return;
+        }
+      }
+
+      if (pareceOrdem && !quotedMsg) {
+        const comandoGerado = await convertOrderToCommand(ordem);
+        if (comandoGerado) {
+          // Verificar se é comando que precisa de grupo
+          const precisaGrupo = ['schedule', 'fixar', 'todos', 'ban', 'delete'].some(c => comandoGerado.toLowerCase().includes(c));
+          if (precisaGrupo) {
+            const grupos = authorizedGroups;
+            if (grupos.length === 0) {
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum grupo autorizado!\nUse !authgroup no grupo.\n◝──────────────────◜` });
+              return;
+            }
+            if (grupos.length === 1) {
+              // Só tem um grupo - executa direto
+              const executou = parseAndExecuteCommand(comandoGerado, sock, msg, grupos[0], sender, true, true, true, true);
+              if (executou) {
+                await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nExecutado no unico grupo!\n◝──────────────────◜` });
+              }
+              return;
+            }
+            // Perguntar qual grupo
+            let lista = `◜──────────────────◝\n   *ESCOLHA O GRUPO*\n◞──────────────────◟\n`;
+            grupos.forEach((g, i) => { lista += `${i+1}. ${g.split('@')[0]}\n`; });
+            lista += `\nResponda com o numero.\n◝──────────────────◜`;
+            pendingAction[sender] = { comando: comandoGerado, encaminhar: false };
+            await sock.sendMessage(remoteJid, { text: lista });
+            return;
+          } else {
+            // Comando que não precisa de grupo
+            const executou = parseAndExecuteCommand(comandoGerado, sock, msg, remoteJid, sender, false, false, true, false);
+            if (executou) {
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado!\n◝──────────────────◜` });
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    // ========== MODERAÇÃO IA NO GRUPO ==========
     if (isGroup && safe && isBotAdminStatus && iaMemory.ativo && iaMemory.moderar) {
       const precisa = containsLink(messageContent) || containsBannedWord(messageContent) || needsIACheck(messageContent);
       if (precisa) {
@@ -209,6 +425,51 @@ async function connectToWhatsApp() {
       }
     }
     if (!messageContent) return;
+
+    // ========== ORDEM NATURAL NO GRUPO (APENAS OWNER/ADMIN) ==========
+    if (isGroup && (isSenderOwner || isSenderAdmin) && !messageContent.startsWith(PREFIX)) {
+      const ordem = messageContent.trim();
+      const palavrasOrdem = ['agenda', 'agendar', 'agende', 'fixa', 'fixar', 'fixe', 'menciona', 'mencione', 'apaga', 'apague', 'delete', 'remove', 'remover', 'bane', 'banir'];
+      const pareceOrdem = palavrasOrdem.some(p => ordem.toLowerCase().includes(p));
+      if (pareceOrdem) {
+        // Verificar se é resposta a uma mensagem (para encaminhar)
+        const quotedMsgId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+        if (quotedMsgId && (ordem.toLowerCase().includes('encaminha') || ordem.toLowerCase().includes('reenvia') || ordem.toLowerCase().includes('envia'))) {
+          // Encaminhar a mensagem respondida para outro grupo
+          const grupos = authorizedGroups.filter(g => g !== remoteJid);
+          if (grupos.length === 0) {
+            await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum outro grupo\nautorizado!\n◝──────────────────◜` });
+            return;
+          }
+          if (grupos.length === 1) {
+            // Encaminhar direto
+            try {
+              await forwardMessage(sock, { key: { ...msg.key, id: quotedMsgId }, message: msg.message }, grupos[0]);
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nEncaminhado para o grupo!\n◝──────────────────◜` });
+            } catch (err) {
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nFalha ao encaminhar.\n◝──────────────────◜` });
+            }
+            return;
+          }
+          // Múltiplos grupos - perguntar
+          let lista = `◜──────────────────◝\n  *ENCAMINHAR PARA*\n◞──────────────────◟\n`;
+          grupos.forEach((g, i) => { lista += `${i+1}. ${g.split('@')[0]}\n`; });
+          lista += `\nResponda com o numero.\n◝──────────────────◜`;
+          pendingAction[sender] = { encaminhar: true, quotedMsgId, grupos };
+          await sock.sendMessage(remoteJid, { text: lista, mentions: [sender] });
+          return;
+        }
+        // Ordem normal no grupo
+        const comandoGerado = await convertOrderToCommand(ordem);
+        if (comandoGerado) {
+          const executou = parseAndExecuteCommand(comandoGerado, sock, msg, remoteJid, sender, true, isSenderAdmin, isSenderOwner, isBotAdminStatus);
+          if (executou) {
+            await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado!\n◝──────────────────◜` });
+            return;
+          }
+        }
+      }
+    }
 
     const args = messageContent.startsWith(PREFIX) ? messageContent.slice(PREFIX.length).trim().split(/ +/) : [];
     const command = args.shift()?.toLowerCase();
@@ -288,7 +549,7 @@ async function connectToWhatsApp() {
 }
 
 const app = express(), PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.json({ status: 'online', bot: 'Mr Doso', ia: 'DOSO IA', version: '9.0' }));
+app.get('/', (req, res) => res.json({ status: 'online', bot: 'Mr Doso', ia: 'DOSO IA', version: '10.0' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy', redis: redisClient.isReady, ia: iaMemory.ativo, uptime: process.uptime() }));
 setInterval(async () => { try { require('http').get(`http://localhost:${PORT}/health`, () => {}); } catch (err) {} }, 300000);
 
