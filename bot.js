@@ -5,7 +5,6 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   getBinaryNodeChild,
-  makeCacheableSignalKeyStore,
   DisconnectReason,
   fetchLatestBaileysVersion,
   getBinaryNodeChild,
