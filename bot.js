@@ -5,16 +5,12 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   getBinaryNodeChild,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  getBinaryNodeChild,
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const { Boom } = require('@hapi/boom');
 const redis = require('redis');
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-
 // =================================================================
 // CONFIGURAÇÕES
 // =================================================================
