@@ -355,9 +355,10 @@ async function connectToWhatsApp() {
 
   let creds = savedState?.creds || {};
   let keys = savedState?.keys || {};
-  let pairingCodeRequested = false;  // ← EVITAR DUPLICADAS
+  let codeRequested = false;
 
   const { version } = await fetchLatestBaileysVersion();
+  console.log('[AUTH] Versão Baileys:', version);
   
   const sock = makeWASocket({
     version,
@@ -366,52 +367,46 @@ async function connectToWhatsApp() {
       keys: makeCacheableSignalKeyStore(keys, logger)
     },
     logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,  // ← False para usar código
-    browser: ['Ubuntu', 'Chrome', '120.0.0.0'],  // ← Formato correto
+    printQRInTerminal: false,
+    browser: ['Linux', 'Chrome', '120.0.0.0'],
     markOnlineOnConnect: true,
     syncFullHistory: false,
     connectTimeoutMs: 60000,
   });
 
-  let closed = false;
-
-  sock.ev.on('connection.update', async (u) => {
-    const { connection, lastDisconnect } = u;
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect } = update;
     
-    console.log('[AUTH] Estado da conexão:', connection);
-
-    // ★★★ CORREÇÃO AQUI ★★★
-    // Esperar o estado "connecting" antes de pedir o código
-    if (connection === 'connecting' && !creds.registered && !pairingCodeRequested) {
-      pairingCodeRequested = true;
-      console.log('📱 WhatsApp está conectando, solicitando código de pareamento...');
+    console.log('[AUTH] Estado:', connection);
+    
+    // ★ SOLICITAR CÓDIGO APENAS UMA VEZ ★
+    if (connection === 'connecting' && !codeRequested && !creds.registered) {
+      codeRequested = true;
+      console.log('📱 Solicitando código de pareamento...');
       
       try {
-        // Número sem +, sem espaços, apenas dígitos
-        const phoneNumber = PHONE_NUMBER.replace(/[^0-9]/g, '');
-        console.log(`📞 Número: ${phoneNumber}`);
-        
-        // Aguardar um pouco para garantir que o socket está pronto
+        // Aguardar 2 segundos antes de pedir o código
         await new Promise(r => setTimeout(r, 2000));
         
-        const code = await sock.requestPairingCode(phoneNumber);
+        const code = await sock.requestPairingCode(PHONE_NUMBER);
         console.log('═══════════════════════════════════════');
-        console.log(`🔐 CÓDIGO: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
+        console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code}`);
         console.log('═══════════════════════════════════════');
-        console.log('📱 No WhatsApp: Config → Dispositivos vinculados → Vincular dispositivo');
-        console.log('→ Escolha "Vincular com número de telefone"');
-        console.log(`→ Digite: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
+        console.log('📱 Como usar:');
+        console.log('1. Abra o WhatsApp no celular');
+        console.log('2. Configurações → Dispositivos vinculados');
+        console.log('3. Vincular dispositivo → Vincular com número');
+        console.log(`4. Digite: ${code}`);
         console.log('═══════════════════════════════════════');
       } catch (err) {
         console.error('❌ Erro ao gerar código:', err.message);
-        pairingCodeRequested = false;
+        codeRequested = false;
       }
     }
     
     if (connection === 'open') {
-      console.log('✅ BOT CONECTADO!');
-      console.log(`📱 ID: ${sock.user.id}`);
-      closed = false;
+      console.log('✅ BOT CONECTADO COM SUCESSO!');
+      console.log(`📱 Conectado como: ${sock.user.id}`);
       checkScheduledMessages(sock);
       startFixedMessage(sock);
     }
@@ -420,16 +415,12 @@ async function connectToWhatsApp() {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       console.log(`[AUTH] Conexão fechada. Código: ${statusCode}`);
       
-      if (!closed) {
-        closed = true;
-        // Só limpar sessão em erro de autenticação (401, 403)
-        if (statusCode === 401 || statusCode === 403) {
-          console.log('[AUTH] Erro de autenticação, limpando sessão...');
-          await deleteAuthStateFromRedis();
-        }
-        console.log('[AUTH] Reconectando em 10 segundos...');
-        setTimeout(() => connectToWhatsApp().catch(console.error), 10000);
+      if (statusCode === 401 || statusCode === 403) {
+        console.log('[AUTH] Erro de autenticação, limpando sessão...');
+        await deleteAuthStateFromRedis();
       }
+      
+      setTimeout(() => connectToWhatsApp().catch(console.error), 10000);
     }
   });
 
