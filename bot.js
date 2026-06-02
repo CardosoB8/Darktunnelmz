@@ -346,19 +346,19 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
 // FUNÇÃO PRINCIPAL DO BOT
 // =================================================================
 async function connectToWhatsApp() {
-  // Carregar sessão existente do Redis (NÃO LIMPAR AQUI)
+  // Carregar sessão existente
   let savedState = null;
   try {
     savedState = await getAuthStateFromRedis();
-    console.log('[AUTH] Estado carregado do Redis:', savedState ? 'sim' : 'nao');
-  } catch (err) {
-    console.log('[AUTH] Erro ao carregar:', err.message);
-  }
-  
+    console.log('[AUTH] Estado carregado:', savedState ? 'sim' : 'nao');
+  } catch (err) {}
+
   let creds = savedState?.creds || {};
   let keys = savedState?.keys || {};
+  let pairingCodeRequested = false;  // ← EVITAR DUPLICADAS
 
   const { version } = await fetchLatestBaileysVersion();
+  
   const sock = makeWASocket({
     version,
     auth: {
@@ -366,35 +366,51 @@ async function connectToWhatsApp() {
       keys: makeCacheableSignalKeyStore(keys, logger)
     },
     logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ['Render', 'Chrome', '1.0.0'],
+    printQRInTerminal: false,  // ← False para usar código
+    browser: ['Ubuntu', 'Chrome', '120.0.0.0'],  // ← Formato correto
     markOnlineOnConnect: true,
-    syncFullHistory: false
+    syncFullHistory: false,
+    connectTimeoutMs: 60000,
   });
 
   let closed = false;
 
   sock.ev.on('connection.update', async (u) => {
-    const { connection, qr, lastDisconnect } = u;
+    const { connection, lastDisconnect } = u;
     
-    // Gerar código de pareamento APENAS se não estiver conectado e não tiver credenciais
-    if (qr && !creds.registered && !closed) {
-      console.log('Gerando código de pareamento...');
+    console.log('[AUTH] Estado da conexão:', connection);
+
+    // ★★★ CORREÇÃO AQUI ★★★
+    // Esperar o estado "connecting" antes de pedir o código
+    if (connection === 'connecting' && !creds.registered && !pairingCodeRequested) {
+      pairingCodeRequested = true;
+      console.log('📱 WhatsApp está conectando, solicitando código de pareamento...');
+      
       try {
+        // Número sem +, sem espaços, apenas dígitos
+        const phoneNumber = PHONE_NUMBER.replace(/[^0-9]/g, '');
+        console.log(`📞 Número: ${phoneNumber}`);
+        
         // Aguardar um pouco para garantir que o socket está pronto
         await new Promise(r => setTimeout(r, 2000));
-        const code = await sock.requestPairingCode(PHONE_NUMBER);
+        
+        const code = await sock.requestPairingCode(phoneNumber);
         console.log('═══════════════════════════════════════');
-        console.log(`📱 CÓDIGO DE PAREAMENTO: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
+        console.log(`🔐 CÓDIGO: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
+        console.log('═══════════════════════════════════════');
+        console.log('📱 No WhatsApp: Config → Dispositivos vinculados → Vincular dispositivo');
+        console.log('→ Escolha "Vincular com número de telefone"');
+        console.log(`→ Digite: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
         console.log('═══════════════════════════════════════');
       } catch (err) {
-        console.log('Erro ao gerar código:', err.message);
+        console.error('❌ Erro ao gerar código:', err.message);
+        pairingCodeRequested = false;
       }
     }
     
     if (connection === 'open') {
-      console.log('✅ BOT CONECTADO COM SUCESSO!');
-      console.log(`📱 Conectado como: ${sock.user.id}`);
+      console.log('✅ BOT CONECTADO!');
+      console.log(`📱 ID: ${sock.user.id}`);
       closed = false;
       checkScheduledMessages(sock);
       startFixedMessage(sock);
@@ -406,26 +422,23 @@ async function connectToWhatsApp() {
       
       if (!closed) {
         closed = true;
-        // Não limpar a sessão em caso de erro normal
-        // Só limpar se for erro de autenticação (401, 403, etc)
+        // Só limpar sessão em erro de autenticação (401, 403)
         if (statusCode === 401 || statusCode === 403) {
           console.log('[AUTH] Erro de autenticação, limpando sessão...');
           await deleteAuthStateFromRedis();
         }
-        console.log('[AUTH] Tentando reconectar em 5 segundos...');
-        setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
+        console.log('[AUTH] Reconectando em 10 segundos...');
+        setTimeout(() => connectToWhatsApp().catch(console.error), 10000);
       }
     }
   });
 
   sock.ev.on('creds.update', async (newCreds) => {
     creds = newCreds;
-    const authState = { creds, keys };
-    await saveAuthStateToRedis(authState);
-    console.log('[AUTH] Credenciais atualizadas e salvas no Redis');
+    await saveAuthStateToRedis({ creds, keys });
+    console.log('[AUTH] Credenciais salvas no Redis');
   });
-
-
+  
   sock.ev.on('group-participants.update', async (u) => {
     const { id, participants, action } = u;
     if (action === 'add' && iaMemory.welcomeMsg && iaMemory.ativo) {
