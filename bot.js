@@ -1,13 +1,9 @@
 const {
   default: makeWASocket,
-  useMultiFileAuthState,
   makeCacheableSignalKeyStore,
-  DisconnectReason,
   fetchLatestBaileysVersion,
-  getBinaryNodeChild,
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
-const { Boom } = require('@hapi/boom');
 const redis = require('redis');
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -18,7 +14,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const REDIS_URL = 'redis://default:JyefUsxHJljfdvs8HACumEyLE7XNgLvG@redis-19242.c266.us-east-1-3.ec2.cloud.redislabs.com:19242';
 const PHONE_NUMBER = '258858861745';
 const OWNER_NUMBER = '253188708028487';
-const OWNER_DISPLAY = 'MR DOSO';
+const OWNER_DISPLAY = 'Mr Doso';
 const OWNER_CONTACT = 'wa.me/258865446574';
 const PREFIX = '!';
 const IA_MODEL_NAME = 'gemini-flash-latest';
@@ -38,8 +34,46 @@ const getNextApiKey = () => {
   return key;
 };
 
-const redisClient = redis.createClient({ url: REDIS_URL, socket: { reconnectStrategy: (retries) => Math.min(retries * 100, 3000) } });
+const redisClient = redis.createClient({
+  url: REDIS_URL,
+  socket: { reconnectStrategy: (retries) => Math.min(retries * 100, 3000) }
+});
 redisClient.on('error', (err) => console.error('Redis Error:', err));
+
+// =================================================================
+// AUTENTICAÇÃO VIA REDIS
+// =================================================================
+const AUTH_STATE_KEY = 'baileys:authState';
+
+async function getAuthStateFromRedis() {
+  try {
+    const data = await redisClient.get(AUTH_STATE_KEY);
+    if (data) {
+      console.log('[AUTH] Sessão carregada do Redis');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('[AUTH] Erro ao carregar sessão:', err.message);
+  }
+  return null;
+}
+
+async function saveAuthStateToRedis(state) {
+  try {
+    await redisClient.set(AUTH_STATE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.error('[AUTH] Erro ao salvar sessão:', err.message);
+  }
+}
+
+async function deleteAuthStateFromRedis() {
+  try {
+    await redisClient.del(AUTH_STATE_KEY);
+    console.log('[AUTH] Sessão removida do Redis');
+  } catch (err) {
+    console.error('[AUTH] Erro ao remover sessão:', err.message);
+  }
+}
 
 // =================================================================
 // ESTADO DO BOT
@@ -48,7 +82,7 @@ let config = {
   antiLink: true, antiWords: true, antiStatus: false, antiMencao: false,
   antiApk: false, antiAudio: false, antiDocumento: false, antiImagem: false,
   antiVideo: false, antiSticker: false, autoMessages: true, antiFlood: true,
-  maxFloodMessages: 5, floodTimeWindow: 60, maxWarnings: 3,
+  maxFloodMessages: 5, floodTimeWindow: 10, maxWarnings: 3,
   removeDelay: { min: 3000, max: 10000 }, deleteDelay: { min: 3000, max: 10000 },
   messageDelay: { min: 3600000, max: 7200000 }, responseDelay: { min: 3000, max: 8000 },
   deleteCmdDelay: { min: 2000, max: 4000 }, botAtivo: true,
@@ -81,7 +115,7 @@ function countTriggerWords(text) { const l = text.toLowerCase(); let c = 0; for 
 function needsIACheck(text) { return countTriggerWords(text) >= 2; }
 
 // =================================================================
-// MENSAGENS PERSONALIZADAS (sem emojis)
+// MENSAGENS PERSONALIZADAS
 // =================================================================
 let customMessages = {
   welcome: null, goodbye: null,
@@ -150,14 +184,12 @@ async function saveLinkCounters() { await redisClient.del('bot:linkcounters'); f
 // =================================================================
 // FUNÇÕES AUXILIARES
 // =================================================================
-const logger = pino({ level: 'silent' }), AUTH_FOLDER = './auth_info_baileys';
+const logger = pino({ level: 'silent' });
 function isGroupAuthorized(g) { return authorizedGroups.includes(g) || g === masterGroup; }
 function isOwner(s) { return s.split('@')[0] === OWNER_NUMBER; }
 function randomDelay(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function containsLink(t) { return /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|gg|me|link|chat|whatsapp|telegram|click|online|site|blog|info|biz|us|xyz|top|club|shop|store|app|dev|tech|cloud))/gi.test(t); }
 function isLinkAllowed(t) { if (allowedLinks.length === 0) return false; return allowedLinks.some(d => t.toLowerCase().includes(d)); }
-
-// CORRIGIDO: word boundary para evitar falsos positivos (ex: "pv" em "npv")
 function containsBannedWord(text) {
   if (bannedWords.length === 0) return false;
   const lower = text.toLowerCase();
@@ -167,7 +199,6 @@ function containsBannedWord(text) {
     return regex.test(lower);
   });
 }
-
 function containsBannedExtension(t) { if (bannedExtensions.length === 0) return false; return bannedExtensions.some(e => t.toLowerCase().endsWith('.' + e)); }
 function isApkFile(msg) { if (!config.antiApk) return false; const t = (msg.message?.documentMessage?.caption || msg.message?.documentMessage?.fileName || msg.message?.conversation || '').toLowerCase(); return t.includes('.apk'); }
 function matchAutoResponse(t) { for (const r of autoResponses) { if (r.trigger.toLowerCase().split(' ').every(w => t.toLowerCase().includes(w))) return r.reply; } return null; }
@@ -177,8 +208,6 @@ async function isBotAdmin(sock, gid) { if (gid === masterGroup || authorizedGrou
 function checkFlood(s, gid) { if (!config.antiFlood) return false; const k = `${gid}:${s}`; if (!floodTracker[k]) floodTracker[k] = []; const now = Date.now(); floodTracker[k] = floodTracker[k].filter(t => now - t < config.floodTimeWindow * 1000); floodTracker[k].push(now); return floodTracker[k].length >= config.maxFloodMessages; }
 function scheduleAutoMessage(sock, gid) { if (!isGroupAuthorized(gid) || !config.autoMessages) return; if (scheduledTasks[gid]) clearTimeout(scheduledTasks[gid]); const d = randomDelay(config.messageDelay.min, config.messageDelay.max); scheduledTasks[gid] = setTimeout(async () => { try { const m = customMessages.autoMessages[Math.floor(Math.random() * customMessages.autoMessages.length)]; await sock.sendMessage(gid, { text: m }); } catch (err) {} scheduleAutoMessage(sock, gid); }, d); }
 function startFixedMessage(sock) { if (fixedMessageTimer) clearInterval(fixedMessageTimer); if (!fixedMessage || !fixedMessage.active) return; const min = fixedMessage.randomMin || 30, max = fixedMessage.randomMax || 30; const d = Math.floor(Math.random() * (max - min + 1) + min) * 60000; fixedMessageTimer = setTimeout(async () => { try { for (const g of authorizedGroups) { await sock.sendMessage(g, { text: `📌 ${fixedMessage.text}` }); } } catch (err) {} startFixedMessage(sock); }, d); }
-
-// CORRIGIDO: agendamento com menção real
 function checkScheduledMessages(sock) {
   setInterval(async () => {
     const now = new Date();
@@ -187,10 +216,7 @@ function checkScheduledMessages(sock) {
       try {
         const metadata = await sock.groupMetadata(s.target);
         const allIds = metadata.participants.map(p => p.id);
-        await sock.sendMessage(s.target, { 
-          text: `◜──────────────────◝\n     *AGENDAMENTO*\n◞──────────────────◟\n${s.message}\n\n@todos\n◝──────────────────◜`, 
-          mentions: allIds 
-        });
+        await sock.sendMessage(s.target, { text: `◜──────────────────◝\n     *AGENDAMENTO*\n◞──────────────────◟\n${s.message}\n\n@todos\n◝──────────────────◜`, mentions: allIds });
         s.sent = true;
       } catch (err) {
         try { await sock.sendMessage(s.target, { text: `◜──────────────────◝\n     *AGENDAMENTO*\n◞──────────────────◟\n${s.message}\n◝──────────────────◜` }); s.sent = true; } catch (err2) {}
@@ -199,7 +225,6 @@ function checkScheduledMessages(sock) {
     if (ts.length > 0) saveSchedules();
   }, 30000);
 }
-
 function getMessageType(msg) {
   if (msg.message?.audioMessage) return 'audio';
   if (msg.message?.documentMessage) return 'documento';
@@ -208,7 +233,6 @@ function getMessageType(msg) {
   if (msg.message?.stickerMessage) return 'sticker';
   return null;
 }
-
 function isMediaBlocked(type) {
   switch (type) {
     case 'audio': return config.antiAudio;
@@ -226,7 +250,6 @@ function isMediaBlocked(type) {
 function gerarContextoIA() {
   return `=== DADOS DO BOT ===\nDono: ${OWNER_DISPLAY}\nContato: ${OWNER_CONTACT}\nData: ${new Date().toLocaleDateString('pt-BR')}\nHora UTC: ${new Date().toLocaleTimeString('pt-BR')}\nFuso: UTC (Mocambique = +2h)\nMax caracteres resposta: ${iaMemory.maxCaracteres}\n\n=== STATUS DAS PROTECOES ===\nAnti-Link: ${config.antiLink ? 'ON' : 'OFF'}\nAnti-Palavras: ${config.antiWords ? 'ON' : 'OFF'}\n\n=== LINKS PERMITIDOS ===\n${allowedLinks.length > 0 ? allowedLinks.join(', ') : 'Nenhum'}\n\n=== PALAVRAS BANIDAS ===\n${bannedWords.length > 0 ? bannedWords.join(', ') : 'Nenhuma'}\n\n=== CONHECIMENTOS ===\n${JSON.stringify(iaMemory.conhecimentos)}\n\n=== COMANDOS ===\n!schedule [DD/MM/AAAA] [HH:MM] [msg]\n!fixar [min] [max] [msg]\n!todos [msg]\n!abrgrupo / !fechargrupo\n!mudarnome [nome]\n!linkgrupo / !idgrupo\n!mutar @user / !desmutar @user\n!addlink [dominio]\n!addword [palavra]\n!delete\n!ban @usuario\n\n=== COMANDOS PERSONALIZADOS ===\n${customCommands.map(c => `!${c.name} = ${c.response}`).join('\n')}`;
 }
-
 async function callGeminiAPI(prompt, retries = 2) {
   const today = new Date().toDateString();
   if (apiUsage.lastReset !== today) { apiUsage = { requests: 0, lastReset: today }; }
@@ -247,7 +270,6 @@ async function callGeminiAPI(prompt, retries = 2) {
   }
   return null;
 }
-
 async function askIAWithCache(pergunta) {
   const ck = `ia:cache:${pergunta.toLowerCase().trim().substring(0, 100)}`;
   const cached = await redisClient.get(ck); if (cached) return cached;
@@ -258,7 +280,6 @@ async function askIAWithCache(pergunta) {
   if (r) { const rc = r.substring(0, iaMemory.maxCaracteres); await redisClient.setEx(ck, 86400, rc); return rc; }
   return null;
 }
-
 async function analyzeMessageWithIA(message) {
   const ctx = gerarContextoIA();
   const variacao = Math.random().toString(36).slice(2, 8);
@@ -271,14 +292,12 @@ async function analyzeMessageWithIA(message) {
     return { acao: 'NAO', subAcao: 'ignorar', mensagem: '' };
   } catch (err) { return { acao: 'ERRO', subAcao: 'timeout', mensagem: '' }; }
 }
-
 async function convertOrderToCommand(ordem) {
   const ctx = gerarContextoIA();
   const prompt = `Converta esta ordem em um comando EXATO do bot. Responda APENAS o comando, sem texto adicional.\n\n${ctx}\n\nOrdem: "${ordem}"\n\nComandos disponiveis: !schedule, !fixar, !todos, !addlink, !addword, !delete, !ban, !abrgrupo, !fechargrupo, !mudarnome, !mutar, !desmutar`;
   const resposta = await callGeminiAPI(prompt);
   return resposta ? resposta.trim() : null;
 }
-
 function parseAndExecuteCommand(comandoTexto, sock, msg, remoteJid, sender, isGroup, isSenderAdmin, isSenderOwner, isBotAdminStatus) {
   if (!comandoTexto || !comandoTexto.startsWith(PREFIX)) return false;
   const args = comandoTexto.slice(PREFIX.length).trim().split(/ +/);
@@ -299,8 +318,6 @@ function parseAndExecuteCommand(comandoTexto, sock, msg, remoteJid, sender, isGr
   if (command === 'addword') { if (!isSenderOwner) return false; const w = args.join(' ').toLowerCase(); if (!w) return false; if (!bannedWords.includes(w)) { bannedWords.push(w); setTimeout(async () => { try { await saveWords(); } catch (err) {} }, 100); } return true; }
   return false;
 }
-
-// NOVO: encaminhar mensagens (arquivo, foto, etc.)
 async function forwardMessage(sock, msg, targetJid) {
   try {
     const messageType = Object.keys(msg.message)[0];
@@ -314,8 +331,6 @@ async function forwardMessage(sock, msg, targetJid) {
     return true;
   } catch (err) { console.error('Erro ao encaminhar:', err.message); return false; }
 }
-
-// NOVO: feedback auto-apaga após 5-9s
 async function sendAutoDeleteMessage(sock, remoteJid, text) {
   try {
     const sent = await sock.sendMessage(remoteJid, { text });
@@ -331,57 +346,134 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
 // FUNÇÃO PRINCIPAL DO BOT
 // =================================================================
 async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
+  // Carregar estado anterior do Redis (se existir)
+  const savedState = await getAuthStateFromRedis();
+  
+  let creds = savedState?.creds || {};
+  let keys = savedState?.keys || {};
+
   const { version } = await fetchLatestBaileysVersion();
-  const sock = makeWASocket({ version, auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) }, logger, printQRInTerminal: false, browser: ['Mac OS', 'Chrome', '10.15.7'], markOnlineOnConnect: true, syncFullHistory: false });
+  const sock = makeWASocket({
+    version,
+    auth: {
+      creds: creds,
+      keys: makeCacheableSignalKeyStore(keys, logger)
+    },
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ['Render', 'Chrome', '1.0.0'],
+    markOnlineOnConnect: true,
+    syncFullHistory: false
+  });
+
   let closed = false;
 
   sock.ev.on('connection.update', async (u) => {
     const { connection, qr } = u;
-    if (qr && !sock.authState.creds.registered && !closed) { console.log('Gerando codigo...'); try { await new Promise(r => setTimeout(r, 2000)); const c = await sock.requestPairingCode(PHONE_NUMBER); console.log('CODIGO:', c?.match(/.{1,4}/g)?.join('-') || c); } catch (err) {} }
-    if (connection === 'close') { closed = true; setTimeout(() => connectToWhatsApp().catch(console.error), 5000); }
-    else if (connection === 'open') { console.log('BOT CONECTADO!'); checkScheduledMessages(sock); startFixedMessage(sock); }
+    if (qr && !creds.registered && !closed) {
+      console.log('Gerando código de pareamento...');
+      try {
+        await new Promise(r => setTimeout(r, 2000));
+        const code = await sock.requestPairingCode(PHONE_NUMBER);
+        console.log('CÓDIGO:', code?.match(/.{1,4}/g)?.join('-') || code);
+      } catch (err) {
+        console.log('Erro ao gerar código:', err.message);
+      }
+    }
+    if (connection === 'close') {
+      closed = true;
+      setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
+    } else if (connection === 'open') {
+      console.log('BOT CONECTADO!');
+      checkScheduledMessages(sock);
+      startFixedMessage(sock);
+    }
   });
-  sock.ev.on('creds.update', saveCreds);
+
+  // Salvar credenciais sempre que atualizar
+  sock.ev.on('creds.update', async (newCreds) => {
+    creds = newCreds;
+    await saveAuthStateToRedis({ creds, keys });
+  });
 
   sock.ev.on('group-participants.update', async (u) => {
     const { id, participants, action } = u;
-    if (action === 'add' && iaMemory.welcomeMsg && iaMemory.ativo) { for (const user of participants) { if (user === sock.user.id) continue; await sock.sendMessage(id, { text: `◜──────────────────◝\n     *BEM-VINDO(A)*\n◞──────────────────◟\n${iaMemory.welcomeMsg.replace('{nome}', '@' + user.split('@')[0])}\n◝──────────────────◜`, mentions: [user] }); } }
-    if (action === 'add' && participants.includes(sock.user.id)) { if (!masterGroup) { masterGroup = id; authorizedGroups.push(id); await saveGroups(); scheduleAutoMessage(sock, id); return; } if (!isGroupAuthorized(id)) { groupLeaveTimers[id] = setTimeout(async () => { if (!isGroupAuthorized(id)) await sock.groupLeave(id); }, 30000); return; } scheduleAutoMessage(sock, id); }
+    if (action === 'add' && iaMemory.welcomeMsg && iaMemory.ativo) {
+      for (const user of participants) {
+        if (user === sock.user.id) continue;
+        await sock.sendMessage(id, {
+          text: `◜──────────────────◝\n     *BEM-VINDO(A)*\n◞──────────────────◟\n${iaMemory.welcomeMsg.replace('{nome}', '@' + user.split('@')[0])}\n◝──────────────────◜`,
+          mentions: [user]
+        });
+      }
+    }
+    if (action === 'add' && participants.includes(sock.user.id)) {
+      if (!masterGroup) {
+        masterGroup = id;
+        authorizedGroups.push(id);
+        await saveGroups();
+        scheduleAutoMessage(sock, id);
+        return;
+      }
+      if (!isGroupAuthorized(id)) {
+        groupLeaveTimers[id] = setTimeout(async () => {
+          if (!isGroupAuthorized(id)) await sock.groupLeave(id);
+        }, 30000);
+        return;
+      }
+      scheduleAutoMessage(sock, id);
+    }
   });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0]; if (!msg.message || msg.key.fromMe) return;
-    const remoteJid = msg.key.remoteJid, isGroup = remoteJid.endsWith('@g.us'), sender = msg.key.participant || remoteJid, pushName = msg.pushName || 'Usuario';
-    const messageContent = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || '';
-    const isSenderOwner = isOwner(sender), isSenderAdmin = isGroup ? await isGroupAdmin(sock, remoteJid, sender) : false, isBotAdminStatus = isGroup ? await isBotAdmin(sock, remoteJid) : false, safe = !isSenderOwner && !isSenderAdmin;
+    const msg = messages[0];
+    if (!msg.message || msg.key.fromMe) return;
 
-    // ========== BLOQUEAR PRIVADO DE OUTRAS PESSOAS ==========
+    const remoteJid = msg.key.remoteJid;
+    const isGroup = remoteJid.endsWith('@g.us');
+    const sender = msg.key.participant || remoteJid;
+    const pushName = msg.pushName || 'Usuario';
+    const messageContent = msg.message.conversation || msg.message.extendedTextMessage?.text || msg.message.imageMessage?.caption || '';
+
+    const isSenderOwner = isOwner(sender);
+    const isSenderAdmin = isGroup ? await isGroupAdmin(sock, remoteJid, sender) : false;
+    const isBotAdminStatus = isGroup ? await isBotAdmin(sock, remoteJid) : false;
+    const safe = !isSenderOwner && !isSenderAdmin;
+
+    // Bloquear privado de outras pessoas
     if (!isGroup && !isSenderOwner) {
-      await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\nNao tenho permissao para\nconversar no privado.\n\nFale com o adm:\nMr Doso - ${OWNER_CONTACT}\n◝──────────────────◜` });
+      await sock.sendMessage(remoteJid, {
+        text: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\nNao tenho permissao para\nconversar no privado.\n\nFale com o adm:\nMr Doso - ${OWNER_CONTACT}\n◝──────────────────◜`
+      });
       return;
     }
 
     if (isGroup && !config.botAtivo && !isSenderOwner) return;
 
-    // ========== VERIFICAR MUTE DO USUÁRIO – agora APAGA mas NÃO interrompe o fluxo ==========
+    // ========== VERIFICAR MUTE (APAGA MAS NÃO INTERROMPE O FLUXO) ==========
     if (isGroup && mutedUsers[remoteJid]?.includes(sender) && safe) {
-      // Apaga a mensagem em background, mas deixa o código continuar para contar links etc.
-      setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(2000, 4000));
-      // NÃO retornar! A verificação de link e palavras ocorrerá normalmente.
+      setTimeout(async () => {
+        try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
+      }, randomDelay(2000, 4000));
+      // CONTINUA O PROCESSAMENTO (não retorna)
     }
 
-    // ========== ANTI-MÍDIA ==========
+    // Anti-mídia
     if (isGroup && safe && isBotAdminStatus) {
       const mediaType = getMessageType(msg);
       if (mediaType && isMediaBlocked(mediaType)) {
-        setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(2000, 4000));
-        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\n@${sender.split('@')[0]} ${mediaType} nao e permitido!\n◝──────────────────◜`, mentions: [sender] });
+        setTimeout(async () => {
+          try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
+        }, randomDelay(2000, 4000));
+        await sock.sendMessage(remoteJid, {
+          text: `◜──────────────────◝\n       *AVISO*\n◞──────────────────◟\n@${sender.split('@')[0]} ${mediaType} nao e permitido!\n◝──────────────────◜`,
+          mentions: [sender]
+        });
         return;
       }
     }
 
-    // ========== ANTI-STATUS (CORRIGIDO) ==========
+    // Anti-status
     if (isGroup && safe && config.antiStatus && isBotAdminStatus) {
       const msgTypes = Object.keys(msg.message || {});
       const isProtocolMsg = msgTypes.includes('protocolMessage');
@@ -393,7 +485,7 @@ async function connectToWhatsApp() {
       }
     }
 
-    // ========== ANTI-MENÇÃO (MELHORADO) ==========
+    // Anti-menção
     if (isGroup && safe && config.antiMencao && isBotAdminStatus) {
       const text = messageContent || '';
       const withoutMentions = text.replace(/@\d+/g, '').replace(/[\s\n\r]/g, '').trim();
@@ -404,23 +496,35 @@ async function connectToWhatsApp() {
       }
     }
 
-    // ========== ANTI-APK / ANTI-EXTENSÃO ==========
-    if (isGroup && safe && config.antiApk && isBotAdminStatus && isApkFile(msg)) { setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(3000, 8000)); return; }
-    if (isGroup && safe && isBotAdminStatus && containsBannedExtension(messageContent)) { setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(3000, 8000)); return; }
-
-    if (!messageContent) return;
-
-    // ========== ANTI-FLOOD ==========
-    if (isGroup && safe && checkFlood(sender, remoteJid) && isBotAdminStatus) {
-      setTimeout(async () => { try { await sock.groupParticipantsUpdate(remoteJid, [sender], 'remove'); addToLog({ action: 'flood_ban', sender, group: remoteJid }); } catch (err) {} }, randomDelay(2000, 5000));
+    // Anti-APK / Anti-extensão
+    if (isGroup && safe && config.antiApk && isBotAdminStatus && isApkFile(msg)) {
+      setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(3000, 8000));
+      return;
+    }
+    if (isGroup && safe && isBotAdminStatus && containsBannedExtension(messageContent)) {
+      setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(3000, 8000));
       return;
     }
 
-    // ========== ANTI-LINK (SILENCIAR 24H OU BANIR APÓS 5) – agora roda mesmo se o usuário estiver mutado ==========
-    if (isGroup && safe && config.antiLink && containsLink(messageContent) && !isLinkAllowed(messageContent) && isBotAdminStatus) {
-      setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(2000, 4000));
+    if (!messageContent) return;
 
-      // Contador de links do usuário
+    // Anti-flood
+    if (isGroup && safe && checkFlood(sender, remoteJid) && isBotAdminStatus) {
+      setTimeout(async () => {
+        try {
+          await sock.groupParticipantsUpdate(remoteJid, [sender], 'remove');
+          addToLog({ action: 'flood_ban', sender, group: remoteJid });
+        } catch (err) {}
+      }, randomDelay(2000, 5000));
+      return;
+    }
+
+    // ========== ANTI-LINK COM CONTADOR (MESMO SILENCIADO) ==========
+    if (isGroup && safe && config.antiLink && containsLink(messageContent) && !isLinkAllowed(messageContent) && isBotAdminStatus) {
+      setTimeout(async () => {
+        try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
+      }, randomDelay(2000, 4000));
+
       const today = new Date().toDateString();
       const counterKey = `${remoteJid}:${sender}:${today}`;
       if (!linkCounters[counterKey]) linkCounters[counterKey] = { count: 0 };
@@ -430,17 +534,16 @@ async function connectToWhatsApp() {
       const linkCount = linkCounters[counterKey].count;
 
       if (linkCount >= config.limiteLinksAntesBan) {
-        // Banir após atingir o limite
         setTimeout(async () => {
           try {
             await sock.groupParticipantsUpdate(remoteJid, [sender], 'remove');
             await sock.sendMessage(remoteJid, { text: customMessages.removeMsg });
             delete linkCounters[counterKey];
             await saveLinkCounters();
+            addToLog({ action: 'link_ban', sender, group: remoteJid });
           } catch (err) {}
         }, randomDelay(config.removeDelay.min, config.removeDelay.max));
       } else {
-        // Silenciar por 24h (se já não estiver silenciado, adiciona)
         if (!mutedUsers[remoteJid]) mutedUsers[remoteJid] = [];
         if (!mutedUsers[remoteJid].includes(sender)) {
           mutedUsers[remoteJid].push(sender);
@@ -452,30 +555,42 @@ async function connectToWhatsApp() {
             } catch (err) {}
           }, config.silenciarTempo * 1000);
         }
-        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n    *USUARIO SILENCIADO*\n◞──────────────────◟\n@${sender.split('@')[0]} link nao autorizado.\nSilenciado por 24h (${linkCount}/${config.limiteLinksAntesBan}).\n◝──────────────────◜`, mentions: [sender] });
+        await sock.sendMessage(remoteJid, {
+          text: `◜──────────────────◝\n    *USUARIO SILENCIADO*\n◞──────────────────◟\n@${sender.split('@')[0]} link nao autorizado.\nSilenciado por 24h (${linkCount}/${config.limiteLinksAntesBan}).\n◝──────────────────◜`,
+          mentions: [sender]
+        });
+        addToLog({ action: 'link_mute', sender, group: remoteJid, count: linkCount });
       }
       return;
     }
 
-    // ========== ANTI-PALAVRAS (APENAS APAGAR) ==========
+    // Anti-palavras
     if (isGroup && safe && config.antiWords && containsBannedWord(messageContent) && isBotAdminStatus) {
-      setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}; await sock.sendMessage(remoteJid, { text: customMessages.wordWarning, mentions: [sender] }); }, randomDelay(config.deleteDelay.min, config.deleteDelay.max));
+      setTimeout(async () => {
+        try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
+        await sock.sendMessage(remoteJid, { text: customMessages.wordWarning, mentions: [sender] });
+      }, randomDelay(config.deleteDelay.min, config.deleteDelay.max));
       return;
     }
 
-    // ========== MODERAÇÃO IA ==========
+    // Moderação IA
     if (isGroup && safe && isBotAdminStatus && iaMemory.ativo && iaMemory.moderar) {
       const precisa = containsLink(messageContent) || containsBannedWord(messageContent) || needsIACheck(messageContent);
       if (precisa) {
         const iaR = await analyzeMessageWithIA(messageContent);
-        if (iaR.acao === 'ERRO') { if (containsLink(messageContent) && !isLinkAllowed(messageContent)) { /* já tratado */ return; } if (containsBannedWord(messageContent)) { /* já tratado */ return; } return; }
         if (iaR.acao === 'SIM') {
           if (iaR.subAcao === 'apagar') {
-            setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}; await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *DOSO IA*\n◞──────────────────◟\n${iaR.mensagem || 'Mensagem removida.'}\n◝──────────────────◜`, mentions: [sender] }); }, randomDelay(3000, 8000));
+            setTimeout(async () => {
+              try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *DOSO IA*\n◞──────────────────◟\n${iaR.mensagem || 'Mensagem removida.'}\n◝──────────────────◜`, mentions: [sender] });
+            }, randomDelay(3000, 8000));
             return;
           }
           if (iaR.subAcao === 'banir') {
-            setTimeout(async () => { try { await sock.groupParticipantsUpdate(remoteJid, [sender], 'remove'); } catch (err) {}; await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *DOSO IA*\n◞──────────────────◟\n${iaR.mensagem || 'Usuario banido.'}\n◝──────────────────◜`, mentions: [sender] }); }, randomDelay(config.removeDelay.min, config.removeDelay.max));
+            setTimeout(async () => {
+              try { await sock.groupParticipantsUpdate(remoteJid, [sender], 'remove'); } catch (err) {}
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *DOSO IA*\n◞──────────────────◟\n${iaR.mensagem || 'Usuario banido.'}\n◝──────────────────◜`, mentions: [sender] });
+            }, randomDelay(config.removeDelay.min, config.removeDelay.max));
             return;
           }
         }
@@ -484,23 +599,39 @@ async function connectToWhatsApp() {
 
     if (!messageContent) return;
 
-    // ========== AÇÕES PENDENTES DO OWNER ==========
+    // Ações pendentes do owner (escolha de grupo)
     if (!isGroup && isSenderOwner && pendingAction[sender]) {
       const escolha = parseInt(messageContent.trim());
       const grupos = authorizedGroups;
       if (!isNaN(escolha) && escolha >= 1 && escolha <= grupos.length) {
         const grupoEscolhido = grupos[escolha - 1];
         const acao = pendingAction[sender];
-        const fakeMsg = { ...msg, key: { ...msg.key, remoteJid: grupoEscolhido } };
-        const executou = parseAndExecuteCommand(acao.comando, sock, fakeMsg, grupoEscolhido, sender, true, true, true, true);
-        if (executou) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado no grupo ${escolha}!\n◝──────────────────◜`); }
-        else { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nFalha ao executar.\n◝──────────────────◜`); }
+
+        if (acao.encaminhar) {
+          try {
+            await forwardMessage(sock, { key: { ...msg.key, id: acao.quotedMsgId }, message: msg.message }, grupoEscolhido);
+            await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nEncaminhado para o grupo ${escolha}!\n◝──────────────────◜`);
+          } catch (err) {
+            await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nFalha ao encaminhar.\n◝──────────────────◜`);
+          }
+        } else {
+          const fakeMsg = { ...msg, key: { ...msg.key, remoteJid: grupoEscolhido } };
+          const executou = parseAndExecuteCommand(acao.comando, sock, fakeMsg, grupoEscolhido, sender, true, true, true, true);
+          if (executou) {
+            await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado no grupo ${escolha}!\n◝──────────────────◜`);
+          } else {
+            await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nFalha ao executar.\n◝──────────────────◜`);
+          }
+        }
         delete pendingAction[sender];
         return;
-      } else { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNumero invalido (1-${grupos.length}).\n◝──────────────────◜`); return; }
+      } else {
+        await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNumero invalido (1-${grupos.length}).\n◝──────────────────◜`);
+        return;
+      }
     }
 
-    // ========== DONO ENVIA ORDEM NATURAL NO PRIVADO ==========
+    // Dono envia ordem natural no privado
     if (!isGroup && isSenderOwner && !messageContent.startsWith(PREFIX)) {
       const ordem = messageContent.trim();
       const palavrasOrdem = ['agenda', 'agendar', 'agende', 'fixa', 'fixar', 'fixe', 'menciona', 'mencione', 'apaga', 'apague', 'delete', 'remove', 'remover', 'bane', 'banir', 'adiciona link', 'adiciona palavra', 'abre grupo', 'fecha grupo', 'muda nome', 'muta', 'desmuta'];
@@ -511,20 +642,31 @@ async function connectToWhatsApp() {
           const precisaGrupo = ['schedule', 'fixar', 'todos', 'ban', 'delete', 'abrgrupo', 'fechargrupo', 'mudarnome', 'mutar', 'desmutar'].some(c => comandoGerado.toLowerCase().includes(c));
           if (precisaGrupo) {
             const grupos = authorizedGroups;
-            if (grupos.length === 0) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum grupo autorizado!\n◝──────────────────◜` }); return; }
-            if (grupos.length === 1) { const executou = parseAndExecuteCommand(comandoGerado, sock, msg, grupos[0], sender, true, true, true, true); if (executou) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nExecutado no unico grupo!\n◝──────────────────◜`); } return; }
+            if (grupos.length === 0) {
+              await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum grupo autorizado!\n◝──────────────────◜` });
+              return;
+            }
+            if (grupos.length === 1) {
+              const executou = parseAndExecuteCommand(comandoGerado, sock, msg, grupos[0], sender, true, true, true, true);
+              if (executou) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nExecutado no unico grupo!\n◝──────────────────◜`); }
+              return;
+            }
             let lista = `◜──────────────────◝\n   *ESCOLHA O GRUPO*\n◞──────────────────◟\n`;
             grupos.forEach((g, i) => { lista += `${i+1}. ${g.split('@')[0]}\n`; });
             lista += `\nResponda com o numero.\n◝──────────────────◜`;
             pendingAction[sender] = { comando: comandoGerado, encaminhar: false };
             await sock.sendMessage(remoteJid, { text: lista });
             return;
-          } else { const executou = parseAndExecuteCommand(comandoGerado, sock, msg, remoteJid, sender, false, false, true, false); if (executou) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado!\n◝──────────────────◜`); } return; }
+          } else {
+            const executou = parseAndExecuteCommand(comandoGerado, sock, msg, remoteJid, sender, false, false, true, false);
+            if (executou) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado!\n◝──────────────────◜`); }
+            return;
+          }
         }
       }
     }
 
-    // ========== ORDEM NATURAL NO GRUPO ==========
+    // Ordem natural no grupo (admin/dono)
     if (isGroup && (isSenderOwner || isSenderAdmin) && !messageContent.startsWith(PREFIX)) {
       const ordem = messageContent.trim();
       const palavrasOrdem = ['agenda', 'agendar', 'agende', 'fixa', 'fixar', 'fixe', 'menciona', 'mencione', 'apaga', 'apague', 'delete', 'remove', 'remover', 'bane', 'banir', 'abre', 'fecha', 'muda nome', 'muta', 'desmuta', 'encaminha', 'reenvia'];
@@ -532,8 +674,7 @@ async function connectToWhatsApp() {
       if (pareceOrdem) {
         const quotedMsgId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
         const quotedSender = msg.message?.extendedTextMessage?.contextInfo?.participant;
-        
-        // NOVO: banir/mutar ao responder mensagem
+
         if (quotedSender && (ordem.toLowerCase().includes('bane') || ordem.toLowerCase().includes('banir') || ordem.toLowerCase().includes('muta') || ordem.toLowerCase().includes('silencia'))) {
           const isBan = ordem.toLowerCase().includes('bane') || ordem.toLowerCase().includes('banir');
           if (isBan && isBotAdminStatus) {
@@ -551,13 +692,18 @@ async function connectToWhatsApp() {
             return;
           }
         }
-        
-        // Encaminhar mensagem
+
         if (quotedMsgId && (ordem.toLowerCase().includes('encaminha') || ordem.toLowerCase().includes('reenvia') || ordem.toLowerCase().includes('envia'))) {
           const grupos = authorizedGroups.filter(g => g !== remoteJid);
-          if (grupos.length === 0) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum outro grupo!\n◝──────────────────◜`); return; }
+          if (grupos.length === 0) {
+            await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNenhum outro grupo!\n◝──────────────────◜`);
+            return;
+          }
           if (grupos.length === 1) {
-            try { await forwardMessage(sock, { key: { ...msg.key, id: quotedMsgId }, message: msg.message }, grupos[0]); await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nEncaminhado!\n◝──────────────────◜`); } catch (err) {}
+            try {
+              await forwardMessage(sock, { key: { ...msg.key, id: quotedMsgId }, message: msg.message }, grupos[0]);
+              await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nEncaminhado!\n◝──────────────────◜`);
+            } catch (err) {}
             return;
           }
           let lista = `◜──────────────────◝\n  *ENCAMINHAR PARA*\n◞──────────────────◟\n`;
@@ -567,8 +713,7 @@ async function connectToWhatsApp() {
           await sock.sendMessage(remoteJid, { text: lista, mentions: [sender] });
           return;
         }
-        
-        // Ordem normal
+
         const comandoGerado = await convertOrderToCommand(ordem);
         if (comandoGerado) {
           const executou = parseAndExecuteCommand(comandoGerado, sock, msg, remoteJid, sender, true, isSenderAdmin, isSenderOwner, isBotAdminStatus);
@@ -577,7 +722,7 @@ async function connectToWhatsApp() {
       }
     }
 
-    // ========== RESPOSTAS AUTOMÁTICAS (GATILHOS) – NOVA CHAMADA ==========
+    // ========== RESPOSTAS AUTOMÁTICAS (GATILHOS) ==========
     const respostaAuto = matchAutoResponse(messageContent);
     if (respostaAuto) {
       await sock.sendMessage(remoteJid, { text: respostaAuto }, { quoted: msg });
@@ -587,43 +732,176 @@ async function connectToWhatsApp() {
     const pf = groupPrefixes[remoteJid] || PREFIX;
     const args = messageContent.startsWith(pf) ? messageContent.slice(pf.length).trim().split(/ +/) : [];
     const command = args.shift()?.toLowerCase();
+
     if (!command) {
-      if (iaMemory.ativo && iaMemory.responder && isGroup && isGroupAuthorized(remoteJid)) { const t = messageContent.toLowerCase().trim(); if (['como', 'quem', 'onde', 'quando', 'porque', 'qual', '?'].some(p => t.includes(p))) { const r = await askIAWithCache(messageContent); if (r) { setTimeout(async () => { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${r}\n◝──────────────────◜`, mentions: [sender] }, { quoted: msg }); }, randomDelay(2000, 4000)); } } }
+      if (iaMemory.ativo && iaMemory.responder && isGroup && isGroupAuthorized(remoteJid)) {
+        const t = messageContent.toLowerCase().trim();
+        if (['como', 'quem', 'onde', 'quando', 'porque', 'qual', '?'].some(p => t.includes(p))) {
+          const r = await askIAWithCache(messageContent);
+          if (r) {
+            setTimeout(async () => {
+              await sock.sendMessage(remoteJid, {
+                text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${r}\n◝──────────────────◜`,
+                mentions: [sender]
+              }, { quoted: msg });
+            }, randomDelay(2000, 4000));
+          }
+        }
+      }
       return;
     }
 
     // ========== COMANDOS ==========
-    if (command === 'delete' && isGroup) { if (!isSenderAdmin && !isSenderOwner) return; const qm = msg.message?.extendedTextMessage?.contextInfo?.stanzaId, qs = msg.message?.extendedTextMessage?.contextInfo?.participant; if (!qm) return; setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: qm, participant: qs } }); if (qs) { await sock.sendMessage(remoteJid, { text: `Mensagem de @${qs.split('@')[0]} apagada!`, mentions: [qs] }); } } catch (err) {} }, randomDelay(config.deleteCmdDelay.min, config.deleteCmdDelay.max)); return; }
-    if (command === 'todos' && isGroup) { if (!isSenderAdmin && !isSenderOwner) return; const t = args.join(' ') || 'Atencao a todos!'; try { const m = await sock.groupMetadata(remoteJid); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *TODOS*\n◞──────────────────◟\n${t}\n◝──────────────────◜`, mentions: m.participants.map(p => p.id) }); } catch (err) { await sock.sendMessage(remoteJid, { text: t }); } return; }
-    if (command === 'abrgrupo' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } try { await sock.groupSettingUpdate(remoteJid, 'not_announcement'); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nGrupo ABERTO!\n◝──────────────────◜` }); } catch (err) {} return; }
-    if (command === 'fechargrupo' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } try { await sock.groupSettingUpdate(remoteJid, 'announcement'); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nGrupo FECHADO!\n◝──────────────────◜` }); } catch (err) {} return; }
-    if (command === 'mudarnome' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } const nn = args.join(' '); if (!nn) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!mudarnome [novo nome]\n◝──────────────────◜` }); return; } try { await sock.groupUpdateSubject(remoteJid, nn); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nNome alterado!\n◝──────────────────◜` }); } catch (err) {} return; }
-    if (command === 'linkgrupo' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } try { const code = await sock.groupInviteCode(remoteJid); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n    *LINK DO GRUPO*\n◞──────────────────◟\nhttps://chat.whatsapp.com/${code}\n◝──────────────────◜` }); } catch (err) {} return; }
-    if (command === 'idgrupo' && isGroup) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *ID DO GRUPO*\n◞──────────────────◟\n${remoteJid}\n◝──────────────────◜` }); return; }
-    if (command === 'mutar' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } const mm = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || (msg.message?.extendedTextMessage?.contextInfo?.participant ? [msg.message?.extendedTextMessage?.contextInfo?.participant] : []); if (mm.length === 0) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!mutar @usuario ou responda\numa mensagem com !mutar\n◝──────────────────◜` }); return; } if (!mutedUsers[remoteJid]) mutedUsers[remoteJid] = []; for (const u of mm) { if (!mutedUsers[remoteJid].includes(u)) { mutedUsers[remoteJid].push(u); setTimeout(async () => { try { mutedUsers[remoteJid] = mutedUsers[remoteJid].filter(x => x !== u); await saveMutedUsers(); } catch (err) {} }, config.silenciarTempo * 1000); } } await saveMutedUsers(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nUsuario(s) silenciado(s) por 24h!\n◝──────────────────◜` }); return; }
-    if (command === 'desmutar' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } const dm = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || (msg.message?.extendedTextMessage?.contextInfo?.participant ? [msg.message?.extendedTextMessage?.contextInfo?.participant] : []); if (dm.length === 0) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!desmutar @usuario\n◝──────────────────◜` }); return; } if (mutedUsers[remoteJid]) { mutedUsers[remoteJid] = mutedUsers[remoteJid].filter(u => !dm.includes(u)); await saveMutedUsers(); } await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nUsuario(s) desilenciado(s)!\n◝──────────────────◜` }); return; }
-    if (command === 'menu') { let m = `◜──────────────────◝\n  *MENU DO BOT - MR DOSO*\n◞──────────────────◟\n!menu      →  Ver este menu\n!info      →  Informacoes\n!dono      →  Ver dono do bot\n!bot       →  Sobre o bot\n!regras    →  Regras do grupo\n!ping      →  Testar bot\n!links     →  Links permitidos\n!advertencias → Ver advertencias\n!lembrete [min] [msg]`; for (const c of customCommands.filter(c => c.public)) m += `\n!${c.name.padEnd(10)} →  ${c.response.substring(0, 15)}`; m += `\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: m }); return; }
-    if (command === 'info') { if (isGroup) { try { const m = await sock.groupMetadata(remoteJid); const a = m.participants.filter(p => p.admin); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n  *INFORMACOES DO GRUPO*\n◞──────────────────◟\nNome: ${m.subject}\nMembros: ${m.participants.length}\nAdmins: ${a.length}\nSua posicao: ${isSenderAdmin ? 'Admin' : 'Membro'}\nAnti-Link: ${config.antiLink ? 'Ativado' : 'Desativado'}\n◝──────────────────◜` }); } catch (err) {} } else { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n   *SUAS INFORMACOES*\n◞──────────────────◟\nNome: ${pushName}\n◝──────────────────◜` }); } return; }
+    if (command === 'delete' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) return;
+      const qm = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+      const qs = msg.message?.extendedTextMessage?.contextInfo?.participant;
+      if (!qm) return;
+      setTimeout(async () => {
+        try {
+          await sock.sendMessage(remoteJid, { delete: { remoteJid, id: qm, participant: qs } });
+          if (qs) { await sock.sendMessage(remoteJid, { text: `Mensagem de @${qs.split('@')[0]} apagada!`, mentions: [qs] }); }
+        } catch (err) {}
+      }, randomDelay(config.deleteCmdDelay.min, config.deleteCmdDelay.max));
+      return;
+    }
+
+    if (command === 'todos' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) return;
+      const t = args.join(' ') || 'Atencao a todos!';
+      try {
+        const m = await sock.groupMetadata(remoteJid);
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *TODOS*\n◞──────────────────◟\n${t}\n◝──────────────────◜`, mentions: m.participants.map(p => p.id) });
+      } catch (err) {
+        await sock.sendMessage(remoteJid, { text: t });
+      }
+      return;
+    }
+
+    if (command === 'abrgrupo' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      try { await sock.groupSettingUpdate(remoteJid, 'not_announcement'); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nGrupo ABERTO!\n◝──────────────────◜` }); } catch (err) {}
+      return;
+    }
+
+    if (command === 'fechargrupo' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      try { await sock.groupSettingUpdate(remoteJid, 'announcement'); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nGrupo FECHADO!\n◝──────────────────◜` }); } catch (err) {}
+      return;
+    }
+
+    if (command === 'mudarnome' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      const nn = args.join(' ');
+      if (!nn) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!mudarnome [novo nome]\n◝──────────────────◜` }); return; }
+      try { await sock.groupUpdateSubject(remoteJid, nn); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nNome alterado!\n◝──────────────────◜` }); } catch (err) {}
+      return;
+    }
+
+    if (command === 'linkgrupo' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      try {
+        const code = await sock.groupInviteCode(remoteJid);
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n    *LINK DO GRUPO*\n◞──────────────────◟\nhttps://chat.whatsapp.com/${code}\n◝──────────────────◜` });
+      } catch (err) {}
+      return;
+    }
+
+    if (command === 'idgrupo' && isGroup) {
+      await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *ID DO GRUPO*\n◞──────────────────◟\n${remoteJid}\n◝──────────────────◜` });
+      return;
+    }
+
+    if (command === 'mutar' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      const mm = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || (msg.message?.extendedTextMessage?.contextInfo?.participant ? [msg.message?.extendedTextMessage?.contextInfo?.participant] : []);
+      if (mm.length === 0) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!mutar @usuario ou responda\numa mensagem com !mutar\n◝──────────────────◜` }); return; }
+      if (!mutedUsers[remoteJid]) mutedUsers[remoteJid] = [];
+      for (const u of mm) {
+        if (!mutedUsers[remoteJid].includes(u)) {
+          mutedUsers[remoteJid].push(u);
+          setTimeout(async () => { try { mutedUsers[remoteJid] = mutedUsers[remoteJid].filter(x => x !== u); await saveMutedUsers(); } catch (err) {} }, config.silenciarTempo * 1000);
+        }
+      }
+      await saveMutedUsers();
+      await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nUsuario(s) silenciado(s) por 24h!\n◝──────────────────◜` });
+      return;
+    }
+
+    if (command === 'desmutar' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      const dm = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || (msg.message?.extendedTextMessage?.contextInfo?.participant ? [msg.message?.extendedTextMessage?.contextInfo?.participant] : []);
+      if (dm.length === 0) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!desmutar @usuario\n◝──────────────────◜` }); return; }
+      if (mutedUsers[remoteJid]) { mutedUsers[remoteJid] = mutedUsers[remoteJid].filter(u => !dm.includes(u)); await saveMutedUsers(); }
+      await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nUsuario(s) desilenciado(s)!\n◝──────────────────◜` });
+      return;
+    }
+
+    if (command === 'menu') {
+      let m = `◜──────────────────◝\n  *MENU DO BOT - MR DOSO*\n◞──────────────────◟\n!menu      →  Ver este menu\n!info      →  Informacoes\n!dono      →  Ver dono do bot\n!bot       →  Sobre o bot\n!regras    →  Regras do grupo\n!ping      →  Testar bot\n!links     →  Links permitidos\n!advertencias → Ver advertencias\n!lembrete [min] [msg]`;
+      for (const c of customCommands.filter(c => c.public)) m += `\n!${c.name.padEnd(10)} →  ${c.response.substring(0, 15)}`;
+      m += `\n◝──────────────────◜`;
+      await sock.sendMessage(remoteJid, { text: m });
+      return;
+    }
+
+    if (command === 'info') {
+      if (isGroup) {
+        try {
+          const m = await sock.groupMetadata(remoteJid);
+          const a = m.participants.filter(p => p.admin);
+          await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n  *INFORMACOES DO GRUPO*\n◞──────────────────◟\nNome: ${m.subject}\nMembros: ${m.participants.length}\nAdmins: ${a.length}\nSua posicao: ${isSenderAdmin ? 'Admin' : 'Membro'}\nAnti-Link: ${config.antiLink ? 'Ativado' : 'Desativado'}\n◝──────────────────◜` });
+        } catch (err) {}
+      } else {
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n   *SUAS INFORMACOES*\n◞──────────────────◟\nNome: ${pushName}\n◝──────────────────◜` });
+      }
+      return;
+    }
+
     if (command === 'dono') { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DONO DO BOT*\n◞──────────────────◟\nNome: ${OWNER_DISPLAY}\nContato: ${OWNER_CONTACT}\n◝──────────────────◜` }); return; }
     if (command === 'bot') { await sock.sendMessage(remoteJid, { text: customMessages.botInfo }); return; }
     if (command === 'regras') { await sock.sendMessage(remoteJid, { text: customMessages.rules }); return; }
     if (command === 'ping') { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n         *PONG!*\n◞──────────────────◟\nBot esta online!\n◝──────────────────◜` }); return; }
     if (command === 'links') { const l = allowedLinks.length > 0 ? allowedLinks.join('\n') : 'Nenhum'; await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n   *LINKS PERMITIDOS*\n◞──────────────────◟\n${l}\n◝──────────────────◜` }); return; }
     if (command === 'advertencias') { const wk = `${remoteJid}:${sender}`; const uw = warnings[wk]?.count || 0; await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n    *SUAS ADVERTENCIAS*\n◞──────────────────◟\n${uw} de ${config.maxWarnings}\nRestam: ${config.maxWarnings - uw}\n◝──────────────────◜` }); return; }
-    const cc = customCommands.find(c => c.name === command); if (cc) { await sock.sendMessage(remoteJid, { text: cc.response }); return; }
-    if (command === 'lembrete') { const min = parseInt(args[0]), mens = args.slice(1).join(' '); if (isNaN(min) || !mens) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!lembrete [minutos] [mensagem]\n◝──────────────────◜` }); return; } if (containsLink(mens)) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNao e permitido links!\n◝──────────────────◜` }); return; } if (!isSenderAdmin && !isSenderOwner) { const td = new Date().toDateString(); if (!dailyReminders[td]) dailyReminders[td] = []; if (dailyReminders[td].length >= 3) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *LIMITE*\n◞──────────────────◟\n3 lembretes/dia atingido!\n◝──────────────────◜` }); return; } dailyReminders[td].push(sender); } setTimeout(async () => { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *LEMBRETE*\n◞──────────────────◟\n@${sender.split('@')[0]}: ${mens}\n◝──────────────────◜`, mentions: [sender] }); }, min * 60000); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nLembrete em ${min} min!\n◝──────────────────◜` }); return; }
-    if (command === 'fixar' && isGroup) { if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; } const o = args[0]?.toLowerCase(); if (o === 'off') { fixedMessage = null; await saveFixedMessage(); if (fixedMessageTimer) clearInterval(fixedMessageTimer); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nMensagem fixada removida!\n◝──────────────────◜` }); } else { const min = parseInt(args[0]), max = parseInt(args[1]); let t; if (!isNaN(min) && !isNaN(max)) { t = args.slice(2).join(' '); } else { t = args.join(' '); } if (!t) { if (fixedMessage && fixedMessage.active) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n   *MENSAGEM FIXADA*\n◞──────────────────◟\n"${fixedMessage.text}"\nIntervalo: ${fixedMessage.randomMin || 30}-${fixedMessage.randomMax || 30} min\nRemover: !fixar off\n◝──────────────────◜` }); } else { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!fixar [min] [max] [msg]\n!fixar off\n◝──────────────────◜` }); } return; } fixedMessage = { text: t, active: true, setBy: sender, randomMin: !isNaN(min) ? min : 30, randomMax: !isNaN(max) ? max : 30 }; await saveFixedMessage(); startFixedMessage(sock); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nMensagem fixada!\nIntervalo: ${fixedMessage.randomMin}-${fixedMessage.randomMax} min\n\n"${t}"\n◝──────────────────◜` }); } return; }
+
+    const cc = customCommands.find(c => c.name === command);
+    if (cc) { await sock.sendMessage(remoteJid, { text: cc.response }); return; }
+
+    if (command === 'lembrete') {
+      const min = parseInt(args[0]), mens = args.slice(1).join(' ');
+      if (isNaN(min) || !mens) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!lembrete [minutos] [mensagem]\n◝──────────────────◜` }); return; }
+      if (containsLink(mens)) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *ERRO*\n◞──────────────────◟\nNao e permitido links!\n◝──────────────────◜` }); return; }
+      if (!isSenderAdmin && !isSenderOwner) { const td = new Date().toDateString(); if (!dailyReminders[td]) dailyReminders[td] = []; if (dailyReminders[td].length >= 3) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *LIMITE*\n◞──────────────────◟\n3 lembretes/dia atingido!\n◝──────────────────◜` }); return; } dailyReminders[td].push(sender); }
+      setTimeout(async () => { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *LEMBRETE*\n◞──────────────────◟\n@${sender.split('@')[0]}: ${mens}\n◝──────────────────◜`, mentions: [sender] }); }, min * 60000);
+      await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nLembrete em ${min} min!\n◝──────────────────◜` });
+      return;
+    }
+
+    if (command === 'fixar' && isGroup) {
+      if (!isSenderAdmin && !isSenderOwner) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *NEGADO*\n◞──────────────────◟\nApenas administradores!\n◝──────────────────◜` }); return; }
+      const o = args[0]?.toLowerCase();
+      if (o === 'off') { fixedMessage = null; await saveFixedMessage(); if (fixedMessageTimer) clearInterval(fixedMessageTimer); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nMensagem fixada removida!\n◝──────────────────◜` }); }
+      else {
+        const min = parseInt(args[0]), max = parseInt(args[1]); let t;
+        if (!isNaN(min) && !isNaN(max)) { t = args.slice(2).join(' '); } else { t = args.join(' '); }
+        if (!t) { if (fixedMessage && fixedMessage.active) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n   *MENSAGEM FIXADA*\n◞──────────────────◟\n"${fixedMessage.text}"\nIntervalo: ${fixedMessage.randomMin || 30}-${fixedMessage.randomMax || 30} min\nRemover: !fixar off\n◝──────────────────◜` }); } else { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!fixar [min] [max] [msg]\n!fixar off\n◝──────────────────◜` }); } return; }
+        fixedMessage = { text: t, active: true, setBy: sender, randomMin: !isNaN(min) ? min : 30, randomMax: !isNaN(max) ? max : 30 };
+        await saveFixedMessage(); startFixedMessage(sock);
+        await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nMensagem fixada!\nIntervalo: ${fixedMessage.randomMin}-${fixedMessage.randomMax} min\n\n"${t}"\n◝──────────────────◜` });
+      }
+      return;
+    }
 
     if (!isSenderOwner) return;
 
+    // ========== COMANDOS DO OWNER ==========
     if (command === 'chat') { const r = await askIAWithCache(args.join(' ')); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\n${r || 'Nao consegui responder.'}\n◝──────────────────◜` }); return; }
     if (command === 'ia' && args[0] === 'testar') { const t = await callGeminiAPI('Responda: DOSO IA funcionando!'); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *TESTE IA*\n◞──────────────────◟\n${t || '❌ Falhou'}\n◝──────────────────◜` }); return; }
     if (command === 'saldo') { const hoje = new Date().toDateString(); if (apiUsage.lastReset !== hoje) { apiUsage = { requests: 0, lastReset: hoje }; } const maxReq = 1500 * GEMINI_KEYS.length; const restante = maxReq - apiUsage.requests; await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n     *SALDO API*\n◞──────────────────◟\nUsadas hoje: ${apiUsage.requests}\nRestantes: ${restante}\nLimite: ${maxReq}\nChaves: ${GEMINI_KEYS.length}\n◝──────────────────◜` }); return; }
-
-    if (command === 'status') { const s = `◜──────────────────◝\n     *STATUS DO BOT*\n◞──────────────────◟\nOnline: Sim\nDono: ${OWNER_DISPLAY}\nGrupos: ${authorizedGroups.length}\nLinks: ${allowedLinks.length}\nPalavras: ${bannedWords.length}\nIA DOSO: ${iaMemory.ativo ? 'ON' : 'OFF'}\nAnti-Link: ${config.antiLink ? 'ON' : 'OFF'}\nAnti-Palavras: ${config.antiWords ? 'ON' : 'OFF'}\nAnti-Flood: ${config.antiFlood ? 'ON' : 'OFF'}\nSilenciar Links: ${config.punirLinkComBan ? 'Ban' : 'Silenciar 24h'}\nLimite Links p/ Ban: ${config.limiteLinksAntesBan}\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: s }); return; }
-    if (command === 'owner' || command === 'comandos') { const o = `◜──────────────────◝\n   *COMANDOS DO OWNER*\n◞──────────────────◟\n*GERENCIAMENTO*\n────────────────────────\n!status → Status completo\n!recache → Recarregar Redis\n!chat [msg] → Conversar com IA\n!ia testar → Testar IA\n!saldo → Ver uso da API\n!boto on/off → Ligar/desligar bot\n!ia limite [N] → Max caracteres IA\n────────────────────────\n*ENSINAR BOT*\n────────────────────────\n!ensinar [t] | [r]\n!addlink [dominio]\n!dellink [dominio]\n!addword [palavra]\n!delword [palavra]\n────────────────────────\n*GRUPOS*\n────────────────────────\n!authgroup\n!listgroups\n!setmaster\n!abrgrupo / !fechargrupo\n!mudarnome [nome]\n!linkgrupo / !idgrupo\n!mutar @user / !desmutar @user\n────────────────────────\n*MODERACAO*\n────────────────────────\n!resetwarnings [user]\n!apagar [responder msg]\n!antiaudio on/off\n!antiimagem on/off\n!antivideo on/off\n!antisticker on/off\n!setlinksban [N] → Limite p/ ban\n────────────────────────\n*CONFIG IA*\n────────────────────────\n!ia on/off\n!ia moderar on/off\n!ia tom curto/normal\n────────────────────────\nDono: ${OWNER_DISPLAY}\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: o }); return; }
+    if (command === 'status') { const s = `◜──────────────────◝\n     *STATUS DO BOT*\n◞──────────────────◟\nOnline: Sim\nDono: ${OWNER_DISPLAY}\nGrupos: ${authorizedGroups.length}\nLinks: ${allowedLinks.length}\nPalavras: ${bannedWords.length}\nIA DOSO: ${iaMemory.ativo ? 'ON' : 'OFF'}\nAnti-Link: ${config.antiLink ? 'ON' : 'OFF'}\nAnti-Palavras: ${config.antiWords ? 'ON' : 'OFF'}\nAnti-Flood: ${config.antiFlood ? 'ON' : 'OFF'}\nLimite Links p/ Ban: ${config.limiteLinksAntesBan}\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: s }); return; }
+    if (command === 'owner' || command === 'comandos') { const o = `◜──────────────────◝\n   *COMANDOS DO OWNER*\n◞──────────────────◟\n*GERENCIAMENTO*\n!status → Status completo\n!recache → Recarregar Redis\n!chat [msg] → Conversar com IA\n!ia testar → Testar IA\n!saldo → Ver uso da API\n!boto on/off → Ligar/desligar bot\n!ia limite [N] → Max caracteres IA\n*ENSINAR BOT*\n!ensinar [t] | [r]\n!addlink [dominio]\n!dellink [dominio]\n!addword [palavra]\n!delword [palavra]\n*GRUPOS*\n!authgroup\n!listgroups\n!setmaster\n!abrgrupo / !fechargrupo\n!mudarnome [nome]\n!linkgrupo / !idgrupo\n!mutar @user / !desmutar @user\n*MODERACAO*\n!resetwarnings [user]\n!apagar [responder msg]\n!antiaudio on/off\n!antiimagem on/off\n!antivideo on/off\n!antisticker on/off\n!setlinksban [N] → Limite p/ ban\n*CONFIG IA*\n!ia on/off\n!ia moderar on/off\n!ia tom curto/normal\nDono: ${OWNER_DISPLAY}\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: o }); return; }
     if (command === 'log') { if (actionLog.length === 0) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *LOG*\n◞──────────────────◟\nNenhuma acao.\n◝──────────────────◜` }); } else { const l = actionLog.slice(-10).reverse().map((a, i) => `${i+1}. ${a.action} - ${a.sender?.split('@')[0] || 'N/A'} - ${new Date(a.time).toLocaleString('pt-BR')}`).join('\n'); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n    *ULTIMAS ACOES*\n◞──────────────────◟\n${l}\n◝──────────────────◜` }); } return; }
-
     if (command === 'ensinar') { const fa = args.join(' '), p = fa.split('|'); if (p.length < 2) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!ensinar [topico] | [resposta]\n!ensinar palavra [p]\n!ensinar link [d]\n!ensinar regra [r]\n◝──────────────────◜` }); return; } const tipo = p[0].trim().toLowerCase(), valor = p.slice(1).join('|').trim(); if (tipo === 'palavra') { iaMemory.palavras.push(valor); bannedWords.push(valor); await saveWords(); } else if (tipo === 'link') { iaMemory.links.push(valor); allowedLinks.push(valor); await saveLinks(); } else if (tipo === 'regra') { iaMemory.regras.push(valor); } else { iaMemory.conhecimentos[tipo] = valor; } await saveIAMemory(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAprendido: ${tipo}\n◝──────────────────◜` }); return; }
 
     if (command === 'ia') { const o = args[0]?.toLowerCase();
@@ -637,10 +915,9 @@ async function connectToWhatsApp() {
       if (o === 'memoria') { const mm = `◜──────────────────◝\n     *MEMORIA IA*\n◞──────────────────◟\nAtivo: ${iaMemory.ativo ? 'Sim' : 'Nao'}\nModerar: ${iaMemory.moderar ? 'Sim' : 'Nao'}\nConhecimentos: ${Object.keys(iaMemory.conhecimentos).length}\nPalavras: ${iaMemory.palavras.length}\nLinks: ${iaMemory.links.length}\nRegras: ${iaMemory.regras.length}\nLimite: ${iaMemory.maxCaracteres} carac.\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: mm }); return; }
       if (o === 'reset') { iaMemory.conhecimentos = {}; await saveIAMemory(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nMemoria resetada!\n◝──────────────────◜` }); return; }
       const si = `◜──────────────────◝\n     *STATUS IA*\n◞──────────────────◟\nAtivo: ${iaMemory.ativo ? 'ON' : 'OFF'}\nModerar: ${iaMemory.moderar ? 'ON' : 'OFF'}\nResponder: ${iaMemory.responder ? 'ON' : 'OFF'}\nTom: ${iaMemory.tom}\nLimite: ${iaMemory.maxCaracteres} carac.\nConhecimentos: ${Object.keys(iaMemory.conhecimentos).length}\n◝──────────────────◜`; await sock.sendMessage(remoteJid, { text: si }); return; }
-    
+
     if (command === 'boto') { const o = args[0]?.toLowerCase(); if (o === 'on') { config.botAtivo = true; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nBot ATIVADO no grupo!\n◝──────────────────◜` }); return; } if (o === 'off') { config.botAtivo = false; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nBot DESATIVADO no grupo!\n◝──────────────────◜` }); return; } await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *USO*\n◞──────────────────◟\n!boto on/off\n◝──────────────────◜` }); return; }
     if (command === 'setlinksban') { const n = parseInt(args[0]); if (isNaN(n) || n < 1) { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n *LIMITE LINKS ATUAL*\n◞──────────────────◟\n${config.limiteLinksAntesBan} links = ban\nUso: !setlinksban [numero]\n◝──────────────────◜` }); return; } config.limiteLinksAntesBan = n; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nLimite: ${n} links = ban\n◝──────────────────◜` }); return; }
-
     if (command === 'antiaudio') { const o = args[0]?.toLowerCase(); if (o === 'on') { config.antiAudio = true; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAnti-Audio ON!\n◝──────────────────◜` }); } else if (o === 'off') { config.antiAudio = false; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAnti-Audio OFF!\n◝──────────────────◜` }); } else { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n   *ANTI-AUDIO*\n◞──────────────────◟\nStatus: ${config.antiAudio ? 'ON' : 'OFF'}\n◝──────────────────◜` }); } return; }
     if (command === 'antidocumento') { const o = args[0]?.toLowerCase(); if (o === 'on') { config.antiDocumento = true; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAnti-Documento ON!\n◝──────────────────◜` }); } else if (o === 'off') { config.antiDocumento = false; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAnti-Documento OFF!\n◝──────────────────◜` }); } else { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n *ANTI-DOCUMENTO*\n◞──────────────────◟\nStatus: ${config.antiDocumento ? 'ON' : 'OFF'}\n◝──────────────────◜` }); } return; }
     if (command === 'antiimagem') { const o = args[0]?.toLowerCase(); if (o === 'on') { config.antiImagem = true; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAnti-Imagem ON!\n◝──────────────────◜` }); } else if (o === 'off') { config.antiImagem = false; await saveConfig(); await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n       *OK*\n◞──────────────────◟\nAnti-Imagem OFF!\n◝──────────────────◜` }); } else { await sock.sendMessage(remoteJid, { text: `◜──────────────────◝\n  *ANTI-IMAGEM*\n◞──────────────────◟\nStatus: ${config.antiImagem ? 'ON' : 'OFF'}\n◝──────────────────◜` }); } return; }
@@ -683,10 +960,30 @@ async function connectToWhatsApp() {
   return sock;
 }
 
-const app = express(), PORT = process.env.PORT || 3000;
+// =================================================================
+// INICIAR SERVIDOR E BOT
+// =================================================================
+const app = express();
+const PORT = process.env.PORT || 3000;
+
 app.get('/', (req, res) => res.json({ status: 'online', bot: 'Mr Doso', ia: 'DOSO IA', version: '12.0' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy', redis: redisClient.isReady, ia: iaMemory.ativo, apiCalls: apiUsage.requests, uptime: process.uptime() }));
-setInterval(async () => { try { require('http').get(`http://localhost:${PORT}/health`, () => {}); } catch (err) {} }, 300000);
 
-async function start() { await loadFromRedis(); app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`)); await connectToWhatsApp(); }
+// Auto-ping para manter ativo
+setInterval(async () => {
+  try {
+    require('http').get(`http://localhost:${PORT}/health`, () => {});
+  } catch (err) {}
+}, 300000);
+
+async function start() {
+  await loadFromRedis();
+  
+  // Limpar sessão anterior se existir
+  await deleteAuthStateFromRedis();
+  
+  app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+  await connectToWhatsApp();
+}
+
 start().catch(console.error);
