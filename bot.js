@@ -364,10 +364,11 @@ async function connectToWhatsApp() {
 
     if (isGroup && !config.botAtivo && !isSenderOwner) return;
 
-    // ========== VERIFICAR MUTE DO USUÁRIO ==========
+    // ========== VERIFICAR MUTE DO USUÁRIO – agora APAGA mas NÃO interrompe o fluxo ==========
     if (isGroup && mutedUsers[remoteJid]?.includes(sender) && safe) {
+      // Apaga a mensagem em background, mas deixa o código continuar para contar links etc.
       setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(2000, 4000));
-      return;
+      // NÃO retornar! A verificação de link e palavras ocorrerá normalmente.
     }
 
     // ========== ANTI-MÍDIA ==========
@@ -415,7 +416,7 @@ async function connectToWhatsApp() {
       return;
     }
 
-    // ========== ANTI-LINK (SILENCIAR 24H OU BANIR APÓS 5) ==========
+    // ========== ANTI-LINK (SILENCIAR 24H OU BANIR APÓS 5) – agora roda mesmo se o usuário estiver mutado ==========
     if (isGroup && safe && config.antiLink && containsLink(messageContent) && !isLinkAllowed(messageContent) && isBotAdminStatus) {
       setTimeout(async () => { try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {} }, randomDelay(2000, 4000));
 
@@ -429,7 +430,7 @@ async function connectToWhatsApp() {
       const linkCount = linkCounters[counterKey].count;
 
       if (linkCount >= config.limiteLinksAntesBan) {
-        // Banir após 5+ links
+        // Banir após atingir o limite
         setTimeout(async () => {
           try {
             await sock.groupParticipantsUpdate(remoteJid, [sender], 'remove');
@@ -439,7 +440,7 @@ async function connectToWhatsApp() {
           } catch (err) {}
         }, randomDelay(config.removeDelay.min, config.removeDelay.max));
       } else {
-        // Silenciar por 24h
+        // Silenciar por 24h (se já não estiver silenciado, adiciona)
         if (!mutedUsers[remoteJid]) mutedUsers[remoteJid] = [];
         if (!mutedUsers[remoteJid].includes(sender)) {
           mutedUsers[remoteJid].push(sender);
@@ -529,7 +530,6 @@ async function connectToWhatsApp() {
       const palavrasOrdem = ['agenda', 'agendar', 'agende', 'fixa', 'fixar', 'fixe', 'menciona', 'mencione', 'apaga', 'apague', 'delete', 'remove', 'remover', 'bane', 'banir', 'abre', 'fecha', 'muda nome', 'muta', 'desmuta', 'encaminha', 'reenvia'];
       const pareceOrdem = palavrasOrdem.some(p => ordem.toLowerCase().includes(p));
       if (pareceOrdem) {
-        // Verificar se é para encaminhar (responder mensagem)
         const quotedMsgId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
         const quotedSender = msg.message?.extendedTextMessage?.contextInfo?.participant;
         
@@ -575,6 +575,13 @@ async function connectToWhatsApp() {
           if (executou) { await sendAutoDeleteMessage(sock, remoteJid, `◜──────────────────◝\n       *DOSO IA*\n◞──────────────────◟\nComando executado!\n◝──────────────────◜`); return; }
         }
       }
+    }
+
+    // ========== RESPOSTAS AUTOMÁTICAS (GATILHOS) – NOVA CHAMADA ==========
+    const respostaAuto = matchAutoResponse(messageContent);
+    if (respostaAuto) {
+      await sock.sendMessage(remoteJid, { text: respostaAuto }, { quoted: msg });
+      return;
     }
 
     const pf = groupPrefixes[remoteJid] || PREFIX;
