@@ -379,30 +379,26 @@ async function connectToWhatsApp() {
     
     console.log('[AUTH] Estado:', connection);
     
-    // ★ SOLICITAR CÓDIGO APENAS UMA VEZ ★
-    if (connection === 'connecting' && !codeRequested && !creds.registered) {
-      codeRequested = true;
-      console.log('📱 Solicitando código de pareamento...');
-      
-      try {
-        // Aguardar 2 segundos antes de pedir o código
-        await new Promise(r => setTimeout(r, 2000));
-        
-        const code = await sock.requestPairingCode(PHONE_NUMBER);
-        console.log('═══════════════════════════════════════');
-        console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code}`);
-        console.log('═══════════════════════════════════════');
-        console.log('📱 Como usar:');
-        console.log('1. Abra o WhatsApp no celular');
-        console.log('2. Configurações → Dispositivos vinculados');
-        console.log('3. Vincular dispositivo → Vincular com número');
-        console.log(`4. Digite: ${code}`);
-        console.log('═══════════════════════════════════════');
-      } catch (err) {
-        console.error('❌ Erro ao gerar código:', err.message);
-        codeRequested = false;
-      }
-    }
+// ... dentro do evento connection.update
+if (connection === 'connecting' && !codeRequested && !creds.registered) {
+  codeRequested = true;
+  console.log('📱 Solicitando código de pareamento...');
+  
+  // ★★★ CORREÇÃO AQUI ★★★
+  // Adicionamos uma pausa de 3 segundos para garantir que tudo esteja pronto
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  // ★★★★★★★★★★★★★★★★★★★★
+  
+  try {
+      const code = await sock.requestPairingCode(PHONE_NUMBER);
+      console.log('═══════════════════════════════════════');
+      console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code}`);
+      console.log('═══════════════════════════════════════');
+  } catch (err) {
+      console.error('❌ Erro ao gerar código:', err.message);
+      codeRequested = false; // Permite tentar novamente na próxima reconexão
+  }
+}
     
     if (connection === 'open') {
       console.log('✅ BOT CONECTADO COM SUCESSO!');
