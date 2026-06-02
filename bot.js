@@ -425,10 +425,7 @@ async function connectToWhatsApp() {
     console.log('[AUTH] Credenciais atualizadas e salvas no Redis');
   });
 
-  // ... resto do código continua igual (eventos group-participants, messages.upsert, etc)
 
-  return sock;
-}
   sock.ev.on('group-participants.update', async (u) => {
     const { id, participants, action } = u;
     if (action === 'add' && iaMemory.welcomeMsg && iaMemory.ativo) {
