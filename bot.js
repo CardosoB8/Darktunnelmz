@@ -1,4 +1,4 @@
-const {
++const {
   default: makeWASocket,
   makeCacheableSignalKeyStore,
   fetchLatestBaileysVersion,
@@ -355,7 +355,6 @@ async function connectToWhatsApp() {
 
   let creds = savedState?.creds || {};
   let keys = savedState?.keys || {};
-  let codeRequested = false;
 
   const { version } = await fetchLatestBaileysVersion();
   console.log('[AUTH] Versão Baileys:', version);
@@ -374,51 +373,45 @@ async function connectToWhatsApp() {
     connectTimeoutMs: 60000,
   });
 
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
-    
-    console.log('[AUTH] Estado:', connection);
-    
-// ... dentro do evento connection.update
-if (connection === 'connecting' && !codeRequested && !creds.registered) {
-  codeRequested = true;
-  console.log('📱 Solicitando código de pareamento...');
+sock.ev.on('connection.update', async (update) => {
+  const { connection, lastDisconnect } = update;
   
-  // ★★★ CORREÇÃO AQUI ★★★
-  // Adicionamos uma pausa de 3 segundos para garantir que tudo esteja pronto
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  // ★★★★★★★★★★★★★★★★★★★★
+  console.log('[AUTH] Estado:', connection);
   
-  try {
+  // Gerar código de pareamento (usando qr)
+  const { qr } = update;
+  if (qr && !sock.authState.creds.registered && !closed) {
+    console.log('📱 Gerando código de pareamento...');
+    try {
+      await new Promise(r => setTimeout(r, 2000));
       const code = await sock.requestPairingCode(PHONE_NUMBER);
       console.log('═══════════════════════════════════════');
-      console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code}`);
+      console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
       console.log('═══════════════════════════════════════');
-  } catch (err) {
+    } catch (err) {
       console.error('❌ Erro ao gerar código:', err.message);
-      codeRequested = false; // Permite tentar novamente na próxima reconexão
+    }
   }
-}
+  
+  if (connection === 'open') {
+    console.log('✅ BOT CONECTADO COM SUCESSO!');
+    console.log(`📱 Conectado como: ${sock.user.id}`);
+    checkScheduledMessages(sock);
+    startFixedMessage(sock);
+  }
+  
+  if (connection === 'close') {
+    const statusCode = lastDisconnect?.error?.output?.statusCode;
+    console.log(`[AUTH] Conexão fechada. Código: ${statusCode}`);
     
-    if (connection === 'open') {
-      console.log('✅ BOT CONECTADO COM SUCESSO!');
-      console.log(`📱 Conectado como: ${sock.user.id}`);
-      checkScheduledMessages(sock);
-      startFixedMessage(sock);
+    if (statusCode === 401 || statusCode === 403) {
+      console.log('[AUTH] Erro de autenticação, limpando sessão...');
+      await deleteAuthStateFromRedis();
     }
     
-    if (connection === 'close') {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      console.log(`[AUTH] Conexão fechada. Código: ${statusCode}`);
-      
-      if (statusCode === 401 || statusCode === 403) {
-        console.log('[AUTH] Erro de autenticação, limpando sessão...');
-        await deleteAuthStateFromRedis();
-      }
-      
-      setTimeout(() => connectToWhatsApp().catch(console.error), 10000);
-    }
-  });
+    setTimeout(() => connectToWhatsApp().catch(console.error), 10000);
+  }
+});
 
   sock.ev.on('creds.update', async (newCreds) => {
     creds = newCreds;
