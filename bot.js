@@ -346,21 +346,17 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
 // FUNÇÃO PRINCIPAL DO BOT
 // =================================================================
 async function connectToWhatsApp() {
-  // FORÇAR LIMPEZA TOTAL
+  // Carregar sessão existente do Redis (NÃO LIMPAR AQUI)
+  let savedState = null;
   try {
-    const savedState = await getAuthStateFromRedis();
-    if (savedState && savedState.creds) {
-      savedState.creds.registered = false;
-      savedState.creds.me = null;
-    }
-    await deleteAuthStateFromRedis();
-    console.log('[AUTH] Sessão anterior completamente limpa');
+    savedState = await getAuthStateFromRedis();
+    console.log('[AUTH] Estado carregado do Redis:', savedState ? 'sim' : 'nao');
   } catch (err) {
-    console.log('[AUTH] Erro na limpeza:', err.message);
+    console.log('[AUTH] Erro ao carregar:', err.message);
   }
   
-  let creds = {};
-  let keys = {};
+  let creds = savedState?.creds || {};
+  let keys = savedState?.keys || {};
 
   const { version } = await fetchLatestBaileysVersion();
   const sock = makeWASocket({
@@ -379,37 +375,60 @@ async function connectToWhatsApp() {
   let closed = false;
 
   sock.ev.on('connection.update', async (u) => {
-    const { connection, qr } = u;
+    const { connection, qr, lastDisconnect } = u;
     
+    // Gerar código de pareamento APENAS se não estiver conectado e não tiver credenciais
     if (qr && !creds.registered && !closed) {
       console.log('Gerando código de pareamento...');
       try {
+        // Aguardar um pouco para garantir que o socket está pronto
         await new Promise(r => setTimeout(r, 2000));
         const code = await sock.requestPairingCode(PHONE_NUMBER);
-        console.log('CÓDIGO:', code?.match(/.{1,4}/g)?.join('-') || code);
+        console.log('═══════════════════════════════════════');
+        console.log(`📱 CÓDIGO DE PAREAMENTO: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
+        console.log('═══════════════════════════════════════');
       } catch (err) {
         console.log('Erro ao gerar código:', err.message);
       }
     }
     
-    if (connection === 'close') {
-      closed = true;
-      setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
-    } else if (connection === 'open') {
-      console.log('BOT CONECTADO!');
+    if (connection === 'open') {
+      console.log('✅ BOT CONECTADO COM SUCESSO!');
+      console.log(`📱 Conectado como: ${sock.user.id}`);
+      closed = false;
       checkScheduledMessages(sock);
       startFixedMessage(sock);
+    }
+    
+    if (connection === 'close') {
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      console.log(`[AUTH] Conexão fechada. Código: ${statusCode}`);
+      
+      if (!closed) {
+        closed = true;
+        // Não limpar a sessão em caso de erro normal
+        // Só limpar se for erro de autenticação (401, 403, etc)
+        if (statusCode === 401 || statusCode === 403) {
+          console.log('[AUTH] Erro de autenticação, limpando sessão...');
+          await deleteAuthStateFromRedis();
+        }
+        console.log('[AUTH] Tentando reconectar em 5 segundos...');
+        setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
+      }
     }
   });
 
   sock.ev.on('creds.update', async (newCreds) => {
     creds = newCreds;
-    await saveAuthStateToRedis({ creds, keys });
+    const authState = { creds, keys };
+    await saveAuthStateToRedis(authState);
+    console.log('[AUTH] Credenciais atualizadas e salvas no Redis');
   });
 
-  // ... resto dos eventos continua igual
+  // ... resto do código continua igual (eventos group-participants, messages.upsert, etc)
 
-
+  return sock;
+}
   sock.ev.on('group-participants.update', async (u) => {
     const { id, participants, action } = u;
     if (action === 'add' && iaMemory.welcomeMsg && iaMemory.ativo) {
@@ -992,9 +1011,6 @@ setInterval(async () => {
 
 async function start() {
   await loadFromRedis();
-  
-  // Limpar sessão anterior se existir
-  await deleteAuthStateFromRedis();
   
   app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
   await connectToWhatsApp();
