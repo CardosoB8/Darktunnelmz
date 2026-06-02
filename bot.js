@@ -346,11 +346,21 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
 // FUNÇÃO PRINCIPAL DO BOT
 // =================================================================
 async function connectToWhatsApp() {
-  // Carregar estado anterior do Redis (se existir)
-  const savedState = await getAuthStateFromRedis();
+  // FORÇAR LIMPEZA TOTAL
+  try {
+    const savedState = await getAuthStateFromRedis();
+    if (savedState && savedState.creds) {
+      savedState.creds.registered = false;
+      savedState.creds.me = null;
+    }
+    await deleteAuthStateFromRedis();
+    console.log('[AUTH] Sessão anterior completamente limpa');
+  } catch (err) {
+    console.log('[AUTH] Erro na limpeza:', err.message);
+  }
   
-  let creds = savedState?.creds || {};
-  let keys = savedState?.keys || {};
+  let creds = {};
+  let keys = {};
 
   const { version } = await fetchLatestBaileysVersion();
   const sock = makeWASocket({
@@ -370,6 +380,7 @@ async function connectToWhatsApp() {
 
   sock.ev.on('connection.update', async (u) => {
     const { connection, qr } = u;
+    
     if (qr && !creds.registered && !closed) {
       console.log('Gerando código de pareamento...');
       try {
@@ -380,6 +391,7 @@ async function connectToWhatsApp() {
         console.log('Erro ao gerar código:', err.message);
       }
     }
+    
     if (connection === 'close') {
       closed = true;
       setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
@@ -390,11 +402,13 @@ async function connectToWhatsApp() {
     }
   });
 
-  // Salvar credenciais sempre que atualizar
   sock.ev.on('creds.update', async (newCreds) => {
     creds = newCreds;
     await saveAuthStateToRedis({ creds, keys });
   });
+
+  // ... resto dos eventos continua igual
+
 
   sock.ev.on('group-participants.update', async (u) => {
     const { id, participants, action } = u;
