@@ -11,10 +11,12 @@
   "author": "Mr Doso",
   "license": "ISC",
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
+    "@adiwajshing/keyed-db": "^0.2.4",
     "@google/generative-ai": "^0.21.0",
-    "@whiskeysockets/baileys": "^6.7.29",
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^7.0.0-rc13",
     "express": "^4.18.2",
+    "libphonenumber-js": "^1.13.6",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1",
     "redis": "^4.6.13"
