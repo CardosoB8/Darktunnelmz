@@ -312,9 +312,6 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
   } catch (err) {}
 }
 
-const fs = require('fs');
-const path = require('path');
-
 // =================================================================
 // CARREGAR SESSÃO DO REDIS
 // =================================================================
