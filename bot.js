@@ -312,11 +312,51 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
   } catch (err) {}
 }
 
+const fs = require('fs');
+const path = require('path');
+
+// =================================================================
+// CARREGAR SESSÃO DO REDIS
+// =================================================================
+async function loadSessionFromRedis() {
+    try {
+        if (!fs.existsSync(AUTH_FOLDER)) {
+            fs.mkdirSync(AUTH_FOLDER, { recursive: true });
+        }
+        
+        const keys = await redisClient.keys('session:*');
+        if (keys.length === 0) {
+            console.log('[SESSION] Nenhuma sessão encontrada no Redis');
+            return false;
+        }
+        
+        for (const key of keys) {
+            const fileName = key.replace('session:', '');
+            const data = await redisClient.get(key);
+            fs.writeFileSync(path.join(AUTH_FOLDER, fileName), data);
+            console.log(`[SESSION] ${fileName} carregado do Redis`);
+        }
+        
+        console.log('[SESSION] ✅ Sessão carregada do Redis');
+        return true;
+    } catch (err) {
+        console.error('[SESSION] Erro ao carregar:', err.message);
+        return false;
+    }
+}
+
+// =================================================================
+// FUNÇÃO PRINCIPAL - MODIFICADA
+// =================================================================
 async function connectToWhatsApp() {
+    // ========== TENTAR CARREGAR SESSÃO DO REDIS ==========
+    await loadSessionFromRedis();
+    
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
     const { version } = await fetchLatestBaileysVersion();
 
     console.log('[AUTH] Versão Baileys:', version);
+    console.log('[AUTH] Credenciais registradas:', !!state.creds.registered);
 
     const sock = makeWASocket({
         version,
@@ -336,73 +376,28 @@ async function connectToWhatsApp() {
         fireInitQueries: true,
     });
 
-    sock.ev.on('creds.update', saveCreds);
-
-    let connectionClosed = false;
+    // SE JÁ TIVER SESSÃO, NÃO PRECISA GERAR CÓDIGO
     let pairingCodeSent = false;
-    let waitForNotification = false;
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, qr } = update;
         
         console.log('[AUTH] Estado:', connection);
         
-        if (qr && !sock.authState.creds.registered && !connectionClosed && !pairingCodeSent) {
+        // SÓ GERAR CÓDIGO SE NÃO TIVER SESSÃO
+        if (qr && !sock.authState.creds.registered && !pairingCodeSent) {
             pairingCodeSent = true;
             console.log('📱 Gerando código de pareamento...');
             
             try {
                 await new Promise(r => setTimeout(r, 5000));
-                
                 const code = await sock.requestPairingCode(PHONE_NUMBER);
-                
                 console.log('═══════════════════════════════════════');
                 console.log(`🔐 CÓDIGO: ${code}`);
                 console.log('═══════════════════════════════════════');
-                console.log(`📱 Digite: ${PHONE_NUMBER}`);
-                console.log('   Configurações → Dispositivos Vinculados → Vincular com código\n');
-                console.log('⚠️  IMPORTANTE:');
-                console.log('   - A NOTIFICAÇÃO PODE DEMORAR ATÉ 2 MINUTOS');
-                console.log('   - MANTENHA O BOT RODANDO');
-                console.log('   - SE NÃO RECEBER, O BOT TENTARÁ NOVAMENTE');
-                console.log('───────────────────────────────────────────\n');
-                
-                waitForNotification = true;
-                pairingCodeSent = false;
-                
-                // Tentar novamente após 2 minutos se não houver notificação
-                setTimeout(async () => {
-                    if (!sock.authState?.creds?.registered && waitForNotification) {
-                        console.log('[AUTH] ⏰ Sem notificação. Tentando novamente...');
-                        waitForNotification = false;
-                        // Forçar reinício da conexão
-                        await sock.end();
-                    }
-                }, 120000);
-                
             } catch (err) {
                 console.error('❌ Erro:', err.message);
                 pairingCodeSent = false;
-                waitForNotification = false;
-            }
-        }
-        
-        if (connection === 'close') {
-            const statusCode = update.lastDisconnect?.error?.output?.statusCode;
-            console.log(`[AUTH] Fechado. Código: ${statusCode}`);
-            
-            connectionClosed = true;
-            
-            if (statusCode === 428) {
-                console.log('[AUTH] ⏳ Aguardando notificação...');
-            } else if (statusCode === 401 || statusCode === 403) {
-                console.log('[AUTH] Erro de autenticação, limpando...');
-                if (fs.existsSync(AUTH_FOLDER)) {
-                    fs.rmSync(AUTH_FOLDER, { recursive: true, force: true });
-                }
-                setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
-            } else {
-                setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
             }
         }
         
@@ -411,24 +406,16 @@ async function connectToWhatsApp() {
             console.log('║    ✅ BOT CONECTADO!                   ║');
             console.log('╚══════════════════════════════════════════╝');
             console.log(`📱 ID: ${sock.user.id}`);
-            
-            connectionClosed = false;
-            pairingCodeSent = false;
-            waitForNotification = false;
-            
             checkScheduledMessages(sock);
             startFixedMessage(sock);
         }
-    });
-
-    // ========== WEBSOCKET KEEP-ALIVE ==========
-    setInterval(() => {
-        if (sock && sock.ws && sock.ws.readyState === 1) {
-            try {
-                sock.ws.ping();
-            } catch (err) {}
+        
+        if (connection === 'close') {
+            const statusCode = update.lastDisconnect?.error?.output?.statusCode;
+            console.log(`[AUTH] Fechado. Código: ${statusCode}`);
+            setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
         }
-    }, 15000);
+    });
 
   
   // ========== EVENTO GROUP-PARTICIPANTS ==========
