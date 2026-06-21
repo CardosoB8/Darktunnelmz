@@ -1,12 +1,16 @@
 const {
   default: makeWASocket,
+  useMultiFileAuthState,
   makeCacheableSignalKeyStore,
   fetchLatestBaileysVersion,
+  DisconnectReason,
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const redis = require('redis');
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
 // =================================================================
 // CONFIGURAÇÕES
@@ -18,6 +22,7 @@ const OWNER_DISPLAY = 'Mr Doso';
 const OWNER_CONTACT = 'wa.me/258865446574';
 const PREFIX = '!';
 const IA_MODEL_NAME = 'gemini-flash-latest';
+const AUTH_FOLDER = './auth_info_baileys';
 
 const GEMINI_KEYS = [
   process.env.GEMINI_API_KEY_1,
@@ -39,41 +44,6 @@ const redisClient = redis.createClient({
   socket: { reconnectStrategy: (retries) => Math.min(retries * 100, 3000) }
 });
 redisClient.on('error', (err) => console.error('Redis Error:', err));
-
-// =================================================================
-// AUTENTICAÇÃO VIA REDIS
-// =================================================================
-const AUTH_STATE_KEY = 'baileys:authState';
-
-async function getAuthStateFromRedis() {
-  try {
-    const data = await redisClient.get(AUTH_STATE_KEY);
-    if (data) {
-      console.log('[AUTH] Sessão carregada do Redis');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error('[AUTH] Erro ao carregar sessão:', err.message);
-  }
-  return null;
-}
-
-async function saveAuthStateToRedis(state) {
-  try {
-    await redisClient.set(AUTH_STATE_KEY, JSON.stringify(state));
-  } catch (err) {
-    console.error('[AUTH] Erro ao salvar sessão:', err.message);
-  }
-}
-
-async function deleteAuthStateFromRedis() {
-  try {
-    await redisClient.del(AUTH_STATE_KEY);
-    console.log('[AUTH] Sessão removida do Redis');
-  } catch (err) {
-    console.error('[AUTH] Erro ao remover sessão:', err.message);
-  }
-}
 
 // =================================================================
 // ESTADO DO BOT
@@ -345,80 +315,110 @@ async function sendAutoDeleteMessage(sock, remoteJid, text) {
 // =================================================================
 // FUNÇÃO PRINCIPAL DO BOT
 // =================================================================
+// =================================================================
+// FUNÇÃO PRINCIPAL DO BOT - CORRIGIDA
+// =================================================================
+// =================================================================
+// FUNÇÃO PRINCIPAL DO BOT - CORRIGIDA (USANDO EVENTO QR)
+// =================================================================
+// =================================================================
+// FUNÇÃO PRINCIPAL DO BOT - CORRIGIDA E COMPLETA
+// =================================================================
 async function connectToWhatsApp() {
-  // Carregar sessão existente
-  let savedState = null;
-  try {
-    savedState = await getAuthStateFromRedis();
-    console.log('[AUTH] Estado carregado:', savedState ? 'sim' : 'nao');
-  } catch (err) {}
-
-  let creds = savedState?.creds || {};
-  let keys = savedState?.keys || {};
-
+  const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
   const { version } = await fetchLatestBaileysVersion();
+
   console.log('[AUTH] Versão Baileys:', version);
-  
+  console.log('[AUTH] Credenciais registradas:', !!state.creds.registered);
+
   const sock = makeWASocket({
     version,
     auth: {
-      creds: creds,
-      keys: makeCacheableSignalKeyStore(keys, logger)
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, logger)
     },
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: ['Linux', 'Chrome', '120.0.0.0'],
+    browser: ['Mac OS', 'Chrome', '10.15.7'],
     markOnlineOnConnect: true,
     syncFullHistory: false,
     connectTimeoutMs: 60000,
   });
 
-sock.ev.on('connection.update', async (update) => {
-  const { connection, lastDisconnect } = update;
-  
-  console.log('[AUTH] Estado:', connection);
-  
-  // Gerar código de pareamento (usando qr)
-  const { qr } = update;
-  if (qr && !sock.authState.creds.registered && !closed) {
-    console.log('📱 Gerando código de pareamento...');
-    try {
-      await new Promise(r => setTimeout(r, 2000));
-      const code = await sock.requestPairingCode(PHONE_NUMBER);
-      console.log('═══════════════════════════════════════');
-      console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code?.match(/.{1,4}/g)?.join('-') || code}`);
-      console.log('═══════════════════════════════════════');
-    } catch (err) {
-      console.error('❌ Erro ao gerar código:', err.message);
-    }
-  }
-  
-  if (connection === 'open') {
-    console.log('✅ BOT CONECTADO COM SUCESSO!');
-    console.log(`📱 Conectado como: ${sock.user.id}`);
-    checkScheduledMessages(sock);
-    startFixedMessage(sock);
-  }
-  
-  if (connection === 'close') {
-    const statusCode = lastDisconnect?.error?.output?.statusCode;
-    console.log(`[AUTH] Conexão fechada. Código: ${statusCode}`);
-    
-    if (statusCode === 401 || statusCode === 403) {
-      console.log('[AUTH] Erro de autenticação, limpando sessão...');
-      await deleteAuthStateFromRedis();
-    }
-    
-    setTimeout(() => connectToWhatsApp().catch(console.error), 10000);
-  }
-});
+  // ========== SALVAR CREDENCIAIS ==========
+  sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('creds.update', async (newCreds) => {
-    creds = newCreds;
-    await saveAuthStateToRedis({ creds, keys });
-    console.log('[AUTH] Credenciais salvas no Redis');
+  // ========== EVENTO DE CONEXÃO ==========
+  let connectionClosed = false;
+  let pairingCodeSent = false;
+
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, qr } = update;
+    
+    console.log('[AUTH] Estado:', connection);
+    
+    // ========== GERAR CÓDIGO DE PAREAMENTO ==========
+    if (qr && !sock.authState.creds.registered && !connectionClosed && !pairingCodeSent) {
+      pairingCodeSent = true;
+      console.log('📱 Gerando código de pareamento...');
+      
+      try {
+        await new Promise(r => setTimeout(r, 2000));
+        const code = await sock.requestPairingCode(PHONE_NUMBER);
+        
+        console.log('═══════════════════════════════════════');
+        console.log(`🔐 CÓDIGO DE PAREAMENTO: ${code}`);
+        console.log('═══════════════════════════════════════');
+        console.log(`📱 Digite este código no WhatsApp número: ${PHONE_NUMBER}`);
+        console.log('   Configurações → Dispositivos Vinculados → Vincular com código\n');
+        
+        // Resetar após mostrar código
+        pairingCodeSent = false;
+        
+      } catch (err) {
+        console.error('❌ Erro ao gerar código:', err.message);
+        pairingCodeSent = false;
+      }
+    }
+    
+    // ========== CONEXÃO FECHADA ==========
+    if (connection === 'close') {
+      const statusCode = update.lastDisconnect?.error?.output?.statusCode;
+      console.log(`[AUTH] Conexão fechada. Código: ${statusCode}`);
+      
+      connectionClosed = true;
+      
+      // Não reconectar no erro 428 (aguardando código)
+      if (statusCode === 428) {
+        console.log('[AUTH] ⏳ Aguardando código de pareamento...');
+        // Resetar flag para tentar novamente se demorar
+        setTimeout(() => {
+          pairingCodeSent = false;
+          console.log('[AUTH] Preparando para gerar novo código se necessário...');
+        }, 30000);
+      } else {
+        console.log('[AUTH] Reconectando em 5 segundos...');
+        setTimeout(() => connectToWhatsApp().catch(console.error), 5000);
+      }
+    }
+    
+    // ========== CONEXÃO ABERTA ==========
+    if (connection === 'open') {
+      console.log('╔══════════════════════════════════════════╗');
+      console.log('║    ✅ BOT CONECTADO COM SUCESSO!       ║');
+      console.log('╚══════════════════════════════════════════╝');
+      console.log(`📱 ID: ${sock.user.id}`);
+      
+      connectionClosed = false;
+      pairingCodeSent = false;
+      
+      checkScheduledMessages(sock);
+      startFixedMessage(sock);
+    }
   });
+
   
+  // ========== EVENTO GROUP-PARTICIPANTS ==========
   sock.ev.on('group-participants.update', async (u) => {
     const { id, participants, action } = u;
     if (action === 'add' && iaMemory.welcomeMsg && iaMemory.ativo) {
@@ -448,6 +448,7 @@ sock.ev.on('connection.update', async (update) => {
     }
   });
 
+  // ========== EVENTO MESSAGES.UPSERT ==========
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
@@ -473,12 +474,11 @@ sock.ev.on('connection.update', async (update) => {
 
     if (isGroup && !config.botAtivo && !isSenderOwner) return;
 
-    // ========== VERIFICAR MUTE (APAGA MAS NÃO INTERROMPE O FLUXO) ==========
+    // ========== VERIFICAR MUTE ==========
     if (isGroup && mutedUsers[remoteJid]?.includes(sender) && safe) {
       setTimeout(async () => {
         try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
       }, randomDelay(2000, 4000));
-      // CONTINUA O PROCESSAMENTO (não retorna)
     }
 
     // Anti-mídia
@@ -542,7 +542,7 @@ sock.ev.on('connection.update', async (update) => {
       return;
     }
 
-    // ========== ANTI-LINK COM CONTADOR (MESMO SILENCIADO) ==========
+    // ========== ANTI-LINK COM CONTADOR ==========
     if (isGroup && safe && config.antiLink && containsLink(messageContent) && !isLinkAllowed(messageContent) && isBotAdminStatus) {
       setTimeout(async () => {
         try { await sock.sendMessage(remoteJid, { delete: { remoteJid, id: msg.key.id, participant: sender } }); } catch (err) {}
@@ -745,7 +745,7 @@ sock.ev.on('connection.update', async (update) => {
       }
     }
 
-    // ========== RESPOSTAS AUTOMÁTICAS (GATILHOS) ==========
+    // ========== RESPOSTAS AUTOMÁTICAS ==========
     const respostaAuto = matchAutoResponse(messageContent);
     if (respostaAuto) {
       await sock.sendMessage(remoteJid, { text: respostaAuto }, { quoted: msg });
@@ -984,7 +984,7 @@ sock.ev.on('connection.update', async (update) => {
 }
 
 // =================================================================
-// INICIAR SERVIDOR E BOT
+// SERVIDOR EXPRESS
 // =================================================================
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -992,16 +992,18 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.json({ status: 'online', bot: 'Mr Doso', ia: 'DOSO IA', version: '12.0' }));
 app.get('/health', (req, res) => res.json({ status: 'healthy', redis: redisClient.isReady, ia: iaMemory.ativo, apiCalls: apiUsage.requests, uptime: process.uptime() }));
 
-// Auto-ping para manter ativo
+// =================================================================
+// AUTO-PING
+// =================================================================
 setInterval(async () => {
-  try {
-    require('http').get(`http://localhost:${PORT}/health`, () => {});
-  } catch (err) {}
+  try { require('http').get(`http://localhost:${PORT}/health`, () => {}); } catch (err) {}
 }, 300000);
 
+// =================================================================
+// INICIAR
+// =================================================================
 async function start() {
   await loadFromRedis();
-  
   app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
   await connectToWhatsApp();
 }
